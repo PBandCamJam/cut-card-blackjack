@@ -252,6 +252,23 @@ input[type=range]{accent-color:var(--brass);width:100%}
 .tog .bank .eyebrow,.tog #trayLbl{color:var(--friend)}
 #togPanel[hidden],#tableArea[hidden]{display:none}
 .presets{display:grid;gap:8px}
+/* Campaign */
+.camp-t{margin:0;font:700 22px var(--font-display)}
+.camp-prog{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pips{display:inline-flex;gap:6px}
+.pips i{width:14px;height:14px;border-radius:50%;border:2px solid var(--brass);background:transparent}
+.pips i.on{background:var(--brass)}
+.levelup{display:grid;gap:2px;padding:10px 12px;border-radius:10px;background:var(--act-hit);border:1px solid var(--win)}
+.levelup b{font:700 20px var(--font-display);color:var(--win)}
+.lvls{display:grid;gap:6px}
+.lvl{display:grid;grid-template-columns:2em 1fr auto;gap:8px;align-items:center;text-align:left;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.25);color:var(--ivory);font:500 14px var(--font-body);cursor:pointer;min-height:48px}
+.lvl>b{font:600 15px var(--font-mono);color:var(--ivory-dim);text-align:center}
+.lvl>span{display:grid;gap:2px;min-width:0}
+.lvl small{color:var(--ivory-dim);font-size:12px}
+.lvl em{font-style:normal;font-size:12px;font-weight:600;color:var(--ivory-dim)}
+.lvl.done em{color:var(--win)}
+.lvl.cur{border-color:var(--brass)}.lvl.cur em,.lvl.cur>b{color:var(--brass)}
+.lvl:disabled{opacity:.45;cursor:default}
 .joinrow.presetrow input{font:500 15px var(--font-body);letter-spacing:0;text-transform:none;text-align:left;padding:0 12px}
 .preset{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}
 .preset .btn:first-child{justify-content:flex-start;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -280,7 +297,7 @@ input[type=range]{accent-color:var(--brass);width:100%}
 .review{display:grid;gap:4px;font:500 13px var(--font-mono)}
 .review div{display:grid;grid-template-columns:2.5em 1fr 3em 3.5em;gap:6px;padding:4px 8px;border-radius:6px;background:var(--shade)}
 .review span:nth-child(3),.review span:nth-child(4){text-align:right}
-.review .r{color:var(--suit-red);filter:brightness(1.6)}
+#vDrill .r{color:var(--suit-red);filter:brightness(1.6)}
 
 /* Stats */
 .tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -398,15 +415,15 @@ const CHIPC={5:'#a3241d',25:'#1d6b48',100:'#26262b',500:'#5b3a8c'};
 const SPEEDS={relaxed:650,casino:380,fast:150};
 const DEFAULTS={decks:6,pen:75,s17:true,bjPay:'3:2',das:true,doubleOn:'any',surrender:'off',resplitAces:false,
   system:'hilo',quiz:'3',askTC:false,showRC:false,showCards:false,showEdge:false,unit:10,hint:false,feedback:true,indices:true,speed:'casino',
-  bots:3,startSeat:3,turnover:'stay',view:'solo',mode:'solo',betHint:true,drillKind:'rc',drillLen:20,drillPer:1,drillPace:1000};
+  bots:3,startSeat:3,turnover:'stay',view:'solo',mode:'solo',betHint:true,drillKind:'camp',drillLen:20,tagLen:20,drillPer:1,drillPace:1000};
 /* Computer player habits. They are never labelled at the table, but each seat plays differently. None play perfectly. */
 const STYLE_KEYS=['book','cautious','nobust','mimic','hunch'];
 const STATS0={hands:0,wins:0,losses:0,pushes:0,net:0,wager:0,bj:0,busts:0,best:0,worst:0,cAsked:0,cRight:0,cStreak:0,cBest:0,tAsked:0,tRight:0,sDec:0,sRight:0};
 /* Count drill totals. Kept apart from table stats because drills belong to neither table. */
-const DSTATS0={dRuns:0,dRight:0,dStreak:0,dBest:0,dCards:0,dFast:0,vRuns:0,vAns:0,vRight:0,vFast:0};
+const DSTATS0={dRuns:0,dRight:0,dStreak:0,dBest:0,dCards:0,dFast:0,dDeck:0,vRuns:0,vAns:0,vRight:0,vFast:0,vDeck:0};
 const HIST_MAX=500,DHIST_MAX=300,PRESET_MAX=12;
 /* Settings a saved setup holds. Screen state (tab, open panels, drill options) is left out. */
-const PKEYS=Object.keys(DEFAULTS).filter(k=>['view','mode','showCards','showEdge','drillKind','drillLen','drillPer','drillPace'].indexOf(k)<0);
+const PKEYS=Object.keys(DEFAULTS).filter(k=>['view','mode','showCards','showEdge','drillKind','drillLen','tagLen','drillPer','drillPace'].indexOf(k)<0);
 const T=m=>{const o={};for(const r of RANKS)o[r]=(r==='J'||r==='Q'||r==='K')?m['10']:m[r];return o;};
 const SYSTEMS={
   hilo:{name:'Hi-Lo',balanced:true,tags:T({A:-1,2:1,3:1,4:1,5:1,6:1,7:0,8:0,9:0,10:-1})},
@@ -1119,44 +1136,102 @@ function sparkOff(){document.querySelectorAll('.spark').forEach(sp=>{sp.querySel
 ['#vStats','#vDrill'].forEach(id=>{const el=$(id);el.addEventListener('pointermove',sparkPoint);el.addEventListener('pointerdown',sparkPoint);el.addEventListener('pointerleave',sparkOff);});
 
 /* ---------- count drill ---------- */
-/* Two drills, both with their own cards so the table shoe and its count are never touched.
-   Running count: cards flash by, then you give the count. Card values: name each card's count value as fast as you can. */
-const DR={phase:'setup',cards:[],i:0,t0:0,t1:0,guess:0,timer:0,ans:null,miss:{},right:0,lastMs:0,done:null};
+/* Drills use their own cards, so the table shoe and its count are never touched.
+   Running count: cards flash by, then you give the count. Card values: name each card's count value as fast as you can.
+   Campaign: fixed levels. Pass a level's benchmark PASS_NEED times in a row to unlock the next one. */
+const DR={phase:'setup',cards:[],held:[],i:0,t0:0,t1:0,wait:0,guess:0,timer:0,ans:null,miss:{},right:0,done:null,kind:'rc',per:1,pace:0,decks:0,lvl:-1,camp:null};
 const PACES=[['Tap',0],['Slow',1500],['Steady',1000],['Quick',600],['Fast',350]];
-function drillShoe(n){const c=[];for(let d=0;d<6;d++)for(const s of SUITS)for(const r of RANKS)c.push({r:r,s:s});return shuffle(c).slice(0,n);}
+const PASS_NEED=3;
+/* deck: the most seconds per 52 cards allowed. maxMiss: card values misses allowed. */
+const LEVELS=[
+  {name:'Know the values',kind:'tags',n:20,maxMiss:0,deck:90,goal:'Card values, 20 cards, no misses, at a pace of 90 s a deck or better.'},
+  {name:'A deck of values',kind:'tags',n:52,maxMiss:1,deck:60,goal:'Card values for a whole deck in under 60 s, at most 1 miss.'},
+  {name:'Values on sight',kind:'tags',n:52,maxMiss:0,deck:35,goal:'Card values for a whole deck in under 35 s, no misses.'},
+  {name:'First count',kind:'rc',n:20,per:1,pace:1500,goal:'Running count, 20 cards one at a time at Slow pace.'},
+  {name:'Steady count',kind:'rc',n:20,per:1,pace:1000,goal:'Running count, 20 cards one at a time at Steady pace.'},
+  {name:'One deck',kind:'rc',n:52,per:1,pace:1000,goal:'Running count through a whole deck, one at a time at Steady pace.'},
+  {name:'Pairs',kind:'rc',n:52,per:2,pace:1000,goal:'A whole deck, two cards at a time at Steady pace.'},
+  {name:'Casino pace',kind:'rc',n:52,per:2,pace:600,goal:'A whole deck, two at a time at Quick pace, about real dealing speed.'},
+  {name:'Speed deck',kind:'rc',n:52,per:1,pace:0,deck:30,goal:'A whole deck at your own pace, one at a time, in under 30 s.'},
+  {name:'Two decks',kind:'rc',n:104,per:2,pace:600,goal:'Two decks, two at a time at Quick pace.'},
+  {name:'Fast hands',kind:'rc',n:52,per:2,pace:350,goal:'A whole deck, two at a time at Fast pace.'},
+  {name:'Full shoe',kind:'rc',n:312,per:2,pace:600,goal:'A six deck shoe, two at a time at Quick pace.'}
+];
+function campState(){
+  const c=dstats.camp&&typeof dstats.camp==='object'?dstats.camp:{};
+  dstats.camp={lvl:Math.max(0,Math.min(LEVELS.length,Number.isInteger(c.lvl)?c.lvl:0)),prog:Math.max(0,Math.min(PASS_NEED-1,Number.isInteger(c.prog)?c.prog:0))};
+  return dstats.camp;
+}
+campState();
+const deckSecs=ms=>ms*52/1000;
+const fmtDeck=ms=>deckSecs(ms).toFixed(1)+' s per deck';
+const lenName=n=>n%52===0?(n===52?'1 deck':n/52+' decks'):n+' cards';
+function freshDecks(d){const c=[];for(let i=0;i<d;i++)for(const s of SUITS)for(const r of RANKS)c.push({r:r,s:s});return shuffle(c);}
+/* What whole decks add up to with this system: 0 for balanced ones, +4 a deck for KO. */
+const deckTotal=d=>{const t=SYSTEMS[cfg.system].tags;return RANKS.reduce((a,r)=>a+t[r]*4,0)*d;};
 function dseg(key,opts){return'<div class="seg" role="group">'+opts.map(o=>'<button type="button" aria-pressed="'+(cfg[key]===o[1])+'" data-dset="'+key+'" data-val="'+esc(JSON.stringify(o[1]))+'">'+o[0]+'</button>').join('')+'</div>';}
 function stopDrill(){clearTimeout(DR.timer);DR.timer=0;if(DR.phase==='run')DR.phase='setup';}
-function startDrill(){
+/* lvl: a campaign level index, or -1 for free practice with the drill settings. */
+function startDrill(lvl){
   clearTimeout(DR.timer);
-  const tags=cfg.drillKind==='tags';
-  DR.cards=drillShoe(tags?20:cfg.drillLen);DR.i=0;DR.guess=0;DR.ans=null;DR.miss={};DR.right=0;DR.done=null;
-  DR.phase='run';DR.t0=performance.now();DR.lastMs=DR.t0;
-  if(!tags&&cfg.drillPace)DR.timer=setTimeout(drillStep,cfg.drillPace);
+  const L=lvl>=0?LEVELS[lvl]:null;
+  DR.lvl=L?lvl:-1;DR.camp=null;
+  DR.kind=L?L.kind:cfg.drillKind==='tags'?'tags':'rc';
+  const n=L?L.n:DR.kind==='tags'?cfg.tagLen:cfg.drillLen;
+  DR.per=DR.kind==='tags'?1:L?L.per:cfg.drillPer;
+  DR.pace=DR.kind==='tags'?0:L?L.pace:cfg.drillPace;
+  DR.held=[];DR.decks=0;
+  if(DR.kind==='tags')DR.cards=freshDecks(1).slice(0,n);
+  else if(n%52===0){
+    /* Whole decks always add up to the same total, so a few cards stay face down to keep the answer honest. */
+    DR.decks=n/52;const all=freshDecks(DR.decks),h=1+rnd(3);
+    DR.cards=all.slice(0,n-h);DR.held=all.slice(n-h);
+  }else DR.cards=freshDecks(6).slice(0,n);
+  DR.i=0;DR.guess=0;DR.ans=null;DR.miss={};DR.right=0;DR.done=null;DR.wait=0;
+  DR.phase='run';DR.t0=performance.now();
+  if(DR.kind==='rc'&&DR.pace)DR.timer=setTimeout(drillStep,DR.pace);
   renderDrill();
 }
 /* Next flash of the running count drill. */
 function drillStep(){
-  if(DR.phase!=='run')return;
-  DR.i+=cfg.drillPer;
+  if(DR.phase!=='run'||DR.kind!=='rc')return;
+  DR.i+=DR.per;
   if(DR.i>=DR.cards.length){DR.i=DR.cards.length;DR.t1=performance.now();DR.phase='answer';clearTimeout(DR.timer);renderDrill();return;}
-  if(cfg.drillPace)DR.timer=setTimeout(drillStep,cfg.drillPace);
+  if(DR.pace)DR.timer=setTimeout(drillStep,DR.pace);
   renderDrill();
 }
+/* Campaign bookkeeping after a run. Only the current level moves you forward. Replays of cleared levels are practice. */
+function campResult(pass){
+  if(DR.lvl<0)return;
+  const c=campState(),cur=DR.lvl===c.lvl;
+  DR.camp={pass:pass,cur:cur,up:false};
+  if(!cur)return;
+  if(pass){c.prog++;if(c.prog>=PASS_NEED){c.lvl++;c.prog=0;DR.camp.up=true;}}else c.prog=0;
+  DR.camp.prog=c.prog;
+}
 function drillCheck(){
+  if(DR.phase!=='answer')return;
   const sys=SYSTEMS[cfg.system];let actual=0;for(const c of DR.cards)actual+=sys.tags[c.r];
   const ok=DR.guess===actual,n=DR.cards.length,ms=(DR.t1-DR.t0)/n;
-  dtally(o=>{o.dRuns++;o.dCards+=n;if(ok){o.dRight++;o.dStreak++;o.dBest=Math.max(o.dBest,o.dStreak);if(n>=20&&(!o.dFast||ms<o.dFast))o.dFast=Math.round(ms);}else o.dStreak=0;});
+  dtally(o=>{o.dRuns++;o.dCards+=n;if(ok){o.dRight++;o.dStreak++;o.dBest=Math.max(o.dBest,o.dStreak);
+    if(n>=20&&(!o.dFast||ms<o.dFast))o.dFast=Math.round(ms);
+    if(DR.decks&&!DR.pace&&(!o.dDeck||ms<o.dDeck))o.dDeck=Math.round(ms);}else o.dStreak=0;});
   DR.done={ok:ok,actual:actual,ms:ms,secs:(DR.t1-DR.t0)/1000};DR.phase='result';
-  logDrill({k:'rc',n:n,per:cfg.drillPer,pace:cfg.drillPace,ok:ok?1:0,g:DR.guess,a:actual,ms:Math.round(ms)});
+  const L=LEVELS[DR.lvl];campResult(ok&&(!L||!L.deck||deckSecs(ms)<=L.deck));
+  logDrill({k:'rc',n:n,dk:DR.decks,per:DR.per,pace:DR.pace,ok:ok?1:0,g:DR.guess,a:actual,ms:Math.round(ms),lv:DR.lvl>=0?DR.lvl+1:0,pass:DR.camp?(DR.camp.pass?1:0):undefined});
   save();renderDrill();
 }
 function tagAnswer(v){
-  if(DR.phase!=='run'||DR.ans)return;
+  if(DR.phase!=='run'||DR.kind!=='tags'||DR.ans)return;
   const c=DR.cards[DR.i],sys=SYSTEMS[cfg.system],ok=sys.tags[c.r]===v;
   dtally(o=>{o.vAns++;if(ok)o.vRight++;});
   if(ok)DR.right++;else{const k=c.r==='J'||c.r==='Q'||c.r==='K'?'10':c.r;DR.miss[k]=(DR.miss[k]||0)+1;}
-  DR.ans={v:v,ok:ok};renderDrill();
-  DR.timer=setTimeout(()=>{DR.ans=null;DR.i++;if(DR.i>=DR.cards.length)finishTags();renderDrill();},ok?220:900);
+  DR.ans={v:v,ok:ok};
+  /* The pause that shows right or wrong is not your time, so it comes off the clock. */
+  const pause=ok?220:900;
+  if(DR.i===DR.cards.length-1)DR.t1=performance.now();else DR.wait+=pause;
+  renderDrill();
+  DR.timer=setTimeout(()=>{DR.ans=null;DR.i++;if(DR.i>=DR.cards.length)finishTags();renderDrill();},pause);
 }
 /* One line in the drill log for each finished run, lifetime and session. */
 function logDrill(e){
@@ -1165,105 +1240,146 @@ function logDrill(e){
   dsessHist.push(e);
 }
 function finishTags(){
-  DR.t1=performance.now();DR.phase='result';
-  const n=DR.cards.length,ms=(DR.t1-DR.t0)/n,perfect=DR.right===n;
-  dtally(o=>{o.vRuns++;if(perfect&&(!o.vFast||ms<o.vFast))o.vFast=Math.round(ms);});
-  logDrill({k:'tags',n:n,r:DR.right,ms:Math.round(ms),miss:Object.keys(DR.miss).join(' ')});
+  DR.phase='result';
+  const n=DR.cards.length,ms=Math.max(1,DR.t1-DR.t0-DR.wait)/n,misses=n-DR.right,perfect=!misses;
+  dtally(o=>{o.vRuns++;if(perfect&&(!o.vFast||ms<o.vFast))o.vFast=Math.round(ms);if(perfect&&n===52&&(!o.vDeck||ms<o.vDeck))o.vDeck=Math.round(ms);});
+  const L=LEVELS[DR.lvl];campResult(!!L&&misses<=L.maxMiss&&(!L.deck||deckSecs(ms)<=L.deck));
+  DR.done={ms:ms,secs:ms*n/1000};
+  logDrill({k:'tags',n:n,r:DR.right,ms:Math.round(ms),miss:Object.keys(DR.miss).join(' '),lv:DR.lvl>=0?DR.lvl+1:0,pass:DR.camp?(DR.camp.pass?1:0):undefined});
   save();
 }
 const paceName=ms=>(PACES.find(p=>p[1]===ms)||['Custom'])[0];
-let dScope='sess',dMore=false,confirmDrill=false;
-/* Seconds per card for each running count run, oldest first. Filled dots were right, hollow ones were missed. */
-function paceChartHTML(h){
-  if(h.length<2)return'<p class="sub">Finish two running count runs to see your pace over time.</p>';
-  const v=h.map(e=>e.ms/1000),hi=Math.max(...v)*1.1||1,W=300,H=120;
+let dScope='sess',dMore=false,confirmDrill=false,confirmCamp=false;
+/* Seconds per deck for each run, oldest first. Filled dots met the mark (right, or no misses), hollow ones did not. One series, so no legend box. */
+function paceChartHTML(h,what){
+  if(h.length<2)return'<p class="sub">Finish two '+what+' runs to see your pace over time.</p>';
+  const v=h.map(e=>deckSecs(e.ms)),hi=Math.max(...v)*1.1||1,W=300,H=120;
+  const good=e=>e.k==='tags'?e.r===e.n:!!e.ok;
   const x=i=>(8+i/(h.length-1)*(W-16)).toFixed(1),y=s=>(8+(1-s/hi)*(H-24)).toFixed(1);
   const d=v.map((s,i)=>(i?'L':'M')+x(i)+' '+y(s)).join('');
-  const tips=h.map((e,i)=>'Run '+(i+1)+': '+v[i].toFixed(2)+' s per card, '+(e.ok?'right':'missed'));
-  const dots=h.map((e,i)=>'<circle cx="'+x(i)+'" cy="'+y(v[i])+'" r="4" stroke="var(--brass)" stroke-width="2" fill="'+(e.ok?'var(--brass)':'var(--rail-2)')+'"/>').join('');
-  return'<div class="spark" data-tips="'+esc(tips.join('|'))+'"><svg viewBox="0 0 '+W+' '+H+'" style="height:auto" role="img" aria-label="Seconds per card over '+h.length+' runs, from '+v[0].toFixed(2)+' to '+v[v.length-1].toFixed(2)+'">'
+  const tips=h.map((e,i)=>'Run '+(i+1)+': '+v[i].toFixed(1)+' s per deck, '+(e.k==='tags'?e.r+' of '+e.n:e.ok?'right':'missed'));
+  const dots=h.map((e,i)=>'<circle cx="'+x(i)+'" cy="'+y(v[i])+'" r="4" stroke="var(--brass)" stroke-width="2" fill="'+(good(e)?'var(--brass)':'var(--rail-2)')+'"/>').join('');
+  return'<div class="spark" data-tips="'+esc(tips.join('|'))+'"><svg viewBox="0 0 '+W+' '+H+'" style="height:auto" role="img" aria-label="'+what+' pace over '+h.length+' runs, from '+v[0].toFixed(1)+' to '+v[v.length-1].toFixed(1)+' seconds per deck">'
     +'<line x1="0" x2="'+W+'" y1="'+y(0)+'" y2="'+y(0)+'" stroke="var(--seat-line)" stroke-width="1"/>'
     +'<path d="'+d+'" fill="none" stroke="var(--brass)" stroke-width="2" stroke-linejoin="round" opacity=".7"/>'+dots
     +'<line class="cross" x1="0" x2="0" y1="0" y2="'+H+'" stroke="var(--ivory-dim)" stroke-width="1" visibility="hidden"/></svg><span class="tip" hidden></span></div>'
-    +'<div class="meter-key"><span>First run</span><span>● right ○ missed · lower is faster</span><span>Latest</span></div>';
+    +'<div class="meter-key"><span>First run</span><span>● '+(what==='card values'?'no misses':'right')+' ○ '+(what==='card values'?'misses':'missed')+' · lower is faster</span><span>Latest</span></div>';
 }
 function drillRow(e){
-  const when=new Date(e.t).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),sp=(e.ms/1000).toFixed(2)+' s/card';
-  if(e.k==='tags')return'<div class="rd"><span>Card values · '+e.n+' cards</span><b class="'+(e.r===e.n?'pos':'')+'">'+e.r+' of '+e.n+'</b>'
-    +'<small>'+sp+(e.miss?' · missed '+esc(e.miss):'')+'</small><small>'+when+'</small></div>';
-  return'<div class="rd"><span>Running count · '+e.n+' cards · '+e.per+' at a time · '+paceName(e.pace)+'</span><b class="'+(e.ok?'pos':'neg')+'">'+(e.ok?'Right '+sgn(e.a):'Off by '+Math.abs(e.g-e.a))+'</b>'
-    +'<small>'+(e.ok?'':'Said '+sgn(e.g)+', was '+sgn(e.a)+' · ')+sp+(e.sys&&SYSTEMS[e.sys]?' · '+SYSTEMS[e.sys].name:'')+'</small><small>'+when+'</small></div>';
+  const when=new Date(e.t).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),sp=fmtDeck(e.ms);
+  const lv=e.lv?'<span class="tagx">Level '+e.lv+(e.pass?' · passed':' · not passed')+'</span>':'';
+  if(e.k==='tags')return'<div class="rd"><span>Card values · '+lenName(e.n)+'</span><b class="'+(e.r===e.n?'pos':'')+'">'+e.r+' of '+e.n+'</b>'
+    +'<small>'+sp+(e.miss?' · missed '+esc(e.miss):'')+'</small><small>'+when+'</small>'+(lv?'<div class="tags" style="grid-column:1/-1">'+lv+'</div>':'')+'</div>';
+  return'<div class="rd"><span>Running count · '+(e.dk?lenName(e.dk*52):e.n+' cards')+' · '+e.per+' at a time · '+paceName(e.pace)+'</span><b class="'+(e.ok?'pos':'neg')+'">'+(e.ok?'Right '+sgn(e.a):'Off by '+Math.abs(e.g-e.a))+'</b>'
+    +'<small>'+(e.ok?'':'Said '+sgn(e.g)+', was '+sgn(e.a)+' · ')+sp+(e.sys&&SYSTEMS[e.sys]?' · '+SYSTEMS[e.sys].name:'')+'</small><small>'+when+'</small>'+(lv?'<div class="tags" style="grid-column:1/-1">'+lv+'</div>':'')+'</div>';
 }
+const dSec=ms=>ms?deckSecs(ms).toFixed(1)+'s':'--';
 function drillStatsHTML(){
   const life=dScope==='life',o=life?dstats:dsess,h=life?dstats.hist:dsessHist;
-  const rc=h.filter(e=>e.k==='rc'),last=rc.slice(-10),lastOk=last.filter(e=>e.ok).length;
+  const rc=h.filter(e=>e.k==='rc'),tg=h.filter(e=>e.k==='tags'),last=rc.slice(-10),lastOk=last.filter(e=>e.ok).length;
   const rows=h.slice().reverse(),shown=dMore?rows:rows.slice(0,10);
   return'<section class="panel"><h3 class="eyebrow">Your drill progress</h3>'
     +'<div class="seg" role="group" aria-label="Which period"><button aria-pressed="'+!life+'" data-dscope="sess">This session</button><button aria-pressed="'+life+'" data-dscope="life">Lifetime</button></div>'
+    +'<p class="sub">Pace is shown as seconds per deck: your time per card times 52, so short runs and whole decks compare directly.</p>'
     +'<p class="sub">Running count</p><div class="tiles">'
     +tile('Accuracy',pc(o.dRight,o.dRuns),o.dRuns+' run'+(o.dRuns===1?'':'s')+' · '+o.dCards+' cards')
     +tile('Last 10',last.length?lastOk+' of '+last.length:'--','recent runs right')
     +tile('Streak',o.dStreak,'best '+o.dBest)
-    +tile('Best pace',o.dFast?(o.dFast/1000).toFixed(2)+'s':'--','per card, right, 20+ cards')
+    +tile('Best pace',dSec(o.dFast),'per deck, right, 20+ cards')
+    +tile('Best deck',dSec(o.dDeck),'whole deck at your own pace, right')
     +'</div><p class="sub">Card values</p><div class="tiles">'
     +tile('Accuracy',pc(o.vRight,o.vAns),o.vAns+' card'+(o.vAns===1?'':'s'))
-    +tile('Best pace',o.vFast?(o.vFast/1000).toFixed(2)+'s':'--','per card, no misses')
-    +'</div><h3 class="eyebrow">Pace, running count</h3>'+paceChartHTML(rc.slice(-60))
+    +tile('Best pace',dSec(o.vFast),'per deck, no misses')
+    +tile('Best deck',dSec(o.vDeck),'whole deck, no misses')
+    +'</div><h3 class="eyebrow">Pace, running count</h3>'+paceChartHTML(rc.slice(-60),'running count')
+    +'<h3 class="eyebrow">Pace, card values</h3>'+paceChartHTML(tg.slice(-60),'card values')
     +'<h3 class="eyebrow">Runs</h3>'
     +(shown.length?'<div class="rounds">'+shown.map(drillRow).join('')+'</div>'+(rows.length>shown.length?'<button class="btn small" data-dr="more">Show all '+rows.length+'</button>':''):'<p class="sub">No runs yet. Every drill you finish shows up here.</p>')
-    +(life?'<button class="btn" data-dr="reset">'+(confirmDrill?'Tap again to erase drill stats':'Reset drill stats')+'</button>':'')
+    +(life?'<button class="btn" data-dr="reset">'+(confirmDrill?'Tap again to erase drill stats':'Reset drill stats')+'</button><p class="hint">Resetting drill stats keeps your campaign level.</p>':'')
     +'</section>';
 }
+const pips=n=>'<span class="pips" aria-label="'+n+' of '+PASS_NEED+' in a row">'+Array.from({length:PASS_NEED},(_,i)=>'<i class="'+(i<n?'on':'')+'"></i>').join('')+'</span>';
+function campaignHTML(){
+  const c=campState(),done=c.lvl>=LEVELS.length,L=LEVELS[c.lvl];
+  const head=done
+    ?'<h2 class="camp-t">Campaign complete</h2><p class="note">You cleared all '+LEVELS.length+' levels. Replay any of them below to stay sharp.</p>'
+    :'<span class="eyebrow">Level '+(c.lvl+1)+' of '+LEVELS.length+'</span><h2 class="camp-t">'+esc(L.name)+'</h2><p class="note">'+esc(L.goal)+(L.kind==='rc'?' You need the exact count.':'')+'</p>'
+      +'<div class="camp-prog">'+pips(c.prog)+'<span class="sub">'+c.prog+' of '+PASS_NEED+' in a row. A miss starts the streak over.</span></div>'
+      +'<button class="btn primary big" data-dr="camp" data-lvl="'+c.lvl+'">Start level '+(c.lvl+1)+'</button>';
+  const list=LEVELS.map((x,i)=>{const st=i<c.lvl?'done':i===c.lvl?'cur':'lock';
+    return'<button class="lvl '+st+'" data-dr="camp" data-lvl="'+i+'" '+(st==='lock'?'disabled':'')+'><b>'+(i+1)+'</b><span><span>'+esc(x.name)+'</span><small>'+esc(x.goal)+'</small></span><em>'+(st==='done'?'Cleared':st==='cur'?'Now':'Locked')+'</em></button>';}).join('');
+  return'<section class="panel">'+head+'</section><section class="panel"><h3 class="eyebrow">Levels</h3><div class="lvls">'+list+'</div>'
+    +'<button class="btn small ghost" data-dr="restart">'+(confirmCamp?'Tap again to start over at level 1':'Start the campaign over')+'</button></section>';
+}
 function drillSetupHTML(){
-  const sys=SYSTEMS[cfg.system],tags=cfg.drillKind==='tags';
+  const sys=SYSTEMS[cfg.system],k=cfg.drillKind,tags=k==='tags',camp=k==='camp';
   return'<section class="panel"><h3 class="eyebrow">Count drill</h3>'
     +'<p class="note">Practice the count away from the table. Counting with <b>'+sys.name+'</b>. <button class="link" data-dr="settings">Change system</button></p>'
-    +fld('Drill',dseg('drillKind',[['Running count','rc'],['Card values','tags']]),tags?'One card at a time. Tap its count value. Aim for instant and right before speeding up the running count drill.':'Cards flash by. Keep the running count in your head, starting at 0, then say what it is.')
-    +(tags?'':fld('Cards',dseg('drillLen',[['10',10],['20',20],['30',30],['52',52]]))
+    +fld('Drill',dseg('drillKind',[['Campaign','camp'],['Running count','rc'],['Card values','tags']]),camp?'Work through levels. Hit each benchmark '+PASS_NEED+' times in a row to move up.':tags?'One card at a time. Tap its count value. Aim for instant and right before speeding up the running count drill.':'Cards flash by. Keep the running count in your head, starting at 0, then say what it is.')
+    +(camp?'':tags?fld('Cards',dseg('tagLen',[['10',10],['20',20],['Whole deck',52]]),'A whole deck tells you how long one deck takes.')
+      :fld('Cards',dseg('drillLen',[['10',10],['20',20],['1 deck',52],['2 decks',104],['6 decks',312]]),'With whole decks, a few cards stay face down so the count does not just end at '+sgn(deckTotal(1))+'.')
       +fld('Cards at a time',dseg('drillPer',[['1',1],['2',2],['3',3]]),'Counting cards in pairs is how pros keep up at a real table: cancel a +1 and a −1 and move on.')
       +fld('Pace',dseg('drillPace',PACES),'Tap means you move on when you are ready. Casino dealing is around Quick.'))
-    +'<button class="btn primary big" data-dr="start">Start</button></section>'
+    +(camp?'':'<button class="btn primary big" data-dr="start">Start</button>')+'</section>'
+    +(camp?campaignHTML():'')
     +'<section class="panel"><h3 class="eyebrow">Card values</h3><div id="legend2" class="legend"><div>'+legendHTML()+'</div></div></section>'
     +drillStatsHTML();
 }
 function drillRunHTML(){
-  const n=DR.cards.length,tags=cfg.drillKind==='tags';
-  if(tags){
+  const n=DR.cards.length,tag=DR.lvl>=0?'<span class="eyebrow">Level '+(DR.lvl+1)+' · '+esc(LEVELS[DR.lvl].name)+'</span>':'';
+  if(DR.kind==='tags'){
     const c=DR.cards[DR.i],vals=[...new Set(Object.values(SYSTEMS[cfg.system].tags))].sort((a,b)=>b-a),right=SYSTEMS[cfg.system].tags[c.r];
-    return'<div class="drill-stage"><div class="prog" style="--p:'+(DR.i/n*100)+'%"><i></i></div>'
+    return'<div class="drill-stage">'+tag+'<div class="prog" style="--p:'+(DR.i/n*100)+'%"><i></i></div>'
       +'<p class="eyebrow">Card '+(DR.i+1)+' of '+n+'</p><div class="cards">'+cardHTML(Object.assign({},c,{fresh:!DR.ans}),false,false)+'</div>'
       +'<p class="msg '+(DR.ans?(DR.ans.ok?'win':'lose'):'')+'">'+(DR.ans?(DR.ans.ok?'Right':'It is '+sgn(right)):'What does it count?')+'</p></div>'
-      +'<div class="tagbtns">'+vals.map(v=>'<button class="btn'+(DR.ans&&v===right?' ok':DR.ans&&v===DR.ans.v?' no':'')+'" data-tag="'+v+'">'+sgn(v)+'</button>').join('')+'</div>'
+      +'<div class="tagbtns">'+vals.map((v,i)=>'<button class="btn'+(DR.ans&&v===right?' ok':DR.ans&&v===DR.ans.v?' no':'')+'" data-tag="'+v+'">'+sgn(v)+' <kbd>'+(i+1)+'</kbd></button>').join('')+'</div>'
       +'<button class="btn ghost" data-dr="stop">Stop</button>';
   }
-  const grp=DR.cards.slice(DR.i,DR.i+cfg.drillPer),shown=Math.min(n,DR.i+grp.length);
-  return'<div class="drill-stage" data-dr="'+(cfg.drillPace?'':'next')+'" style="cursor:'+(cfg.drillPace?'default':'pointer')+'"><div class="prog" style="--p:'+(shown/n*100)+'%"><i></i></div>'
-    +'<p class="eyebrow">'+shown+' of '+n+' cards</p><div class="cards">'+grp.map(c=>cardHTML(Object.assign({},c,{fresh:true}),false,false)).join('')+'</div>'
-    +'<p class="msg">'+(cfg.drillPace?'Keep the count':'Tap for the next cards')+'</p></div>'
-    +'<div class="row">'+(cfg.drillPace?'':'<button class="btn primary" data-dr="next">Next <kbd>Space</kbd></button>')+'<button class="btn ghost" data-dr="stop"'+(cfg.drillPace?' style="grid-column:1/-1"':'')+'>Stop</button></div>';
+  const grp=DR.cards.slice(DR.i,DR.i+DR.per),shown=Math.min(n,DR.i+grp.length),total=n+DR.held.length;
+  const where=DR.decks>1?'Deck '+Math.min(DR.decks,Math.floor(DR.i/52)+1)+' of '+DR.decks:DR.decks?'One deck':shown+' of '+n+' cards';
+  return'<div class="drill-stage" data-dr="'+(DR.pace?'':'next')+'" style="cursor:'+(DR.pace?'default':'pointer')+'">'+tag+'<div class="prog" style="--p:'+(shown/total*100)+'%"><i></i></div>'
+    +'<p class="eyebrow">'+where+'</p><div class="cards">'+grp.map(c=>cardHTML(Object.assign({},c,{fresh:true}),false,false)).join('')+'</div>'
+    +'<p class="msg">'+(DR.pace?'Keep the count':'Tap for the next cards')+'</p></div>'
+    +'<div class="row">'+(DR.pace?'':'<button class="btn primary" data-dr="next">Next <kbd>Space</kbd></button>')+'<button class="btn ghost" data-dr="stop"'+(DR.pace?' style="grid-column:1/-1"':'')+'>Stop</button></div>';
 }
 function drillAnswerHTML(){
-  return'<section class="panel"><h2 style="margin:0;font:700 22px var(--font-display)">What is the running count?</h2><p class="sub">'+DR.cards.length+' cards with '+SYSTEMS[cfg.system].name+', starting at 0.</p>'
+  return'<section class="panel"><h2 class="camp-t">What is the running count?</h2><p class="sub">'+(DR.decks?lenName(DR.decks*52)+' with '+DR.held.length+' card'+(DR.held.length>1?'s':'')+' held back face down':DR.cards.length+' cards')+', '+SYSTEMS[cfg.system].name+', starting at 0.</p>'
     +'<div class="stepper"><button class="btn" data-dbump="-5">−5</button><button class="btn" data-dbump="-1">−1</button><input id="dGuess" type="number" step="1" value="'+DR.guess+'" aria-label="Your running count"><button class="btn" data-dbump="1">+1</button><button class="btn" data-dbump="5">+5</button></div>'
     +'<button class="btn primary big" data-dr="check">Check</button></section>';
 }
+/* Campaign outcome for the run just finished. */
+function campLineHTML(){
+  const k=DR.camp;if(!k)return'';
+  const L=LEVELS[DR.lvl],next=LEVELS[DR.lvl+1];
+  if(!k.cur)return'<p class="coach '+(k.pass?'good':'bad')+'">'+(k.pass?'Benchmark met.':'Benchmark missed.')+' Level '+(DR.lvl+1)+' is already cleared, so this was practice.</p>';
+  if(k.up)return'<div class="levelup"><b>Level up!</b><span>You cleared '+esc(L.name)+'.'+(next?' Next: '+esc(next.name)+'.':' That was the last level.')+'</span></div>';
+  return'<div class="camp-prog">'+pips(k.prog)+'<span class="coach '+(k.pass?'good':'bad')+'">'+(k.pass?'Benchmark met: '+k.prog+' of '+PASS_NEED+' in a row.':'Benchmark missed, so the streak starts over. '+esc(L.goal))+'</span></div>';
+}
+function drillButtons(){
+  if(DR.lvl>=0){const c=campState(),go=DR.camp&&DR.camp.up&&c.lvl<LEVELS.length;
+    return'<div class="row"><button class="btn" data-dr="setup">Campaign</button><button class="btn primary" data-dr="camp" data-lvl="'+(go?c.lvl:DR.lvl)+'">'+(go?'Start level '+(c.lvl+1):'Try again')+'</button></div>';}
+  return'<div class="row"><button class="btn" data-dr="setup">Change drill</button><button class="btn primary" data-dr="start">Go again</button></div>';
+}
 function drillResultHTML(){
-  const sys=SYSTEMS[cfg.system];
-  if(cfg.drillKind==='tags'){
-    const n=DR.cards.length,secs=(DR.t1-DR.t0)/1000,miss=Object.keys(DR.miss);
-    return'<section class="panel"><h2 class="'+(DR.right===n?'ok':'')+'" style="margin:0;font:700 22px var(--font-display);color:'+(DR.right===n?'var(--win)':'var(--ivory)')+'">'+DR.right+' of '+n+' right</h2>'
-      +'<p class="note">'+secs.toFixed(1)+' seconds, about '+(secs/n).toFixed(2)+' s per card.</p>'
-      +(miss.length?'<p class="note">Missed: '+miss.map(r=>r+(r==='10'?'s and faces':'')+' ('+sgn(sys.tags[r])+')').join(', ')+'.</p>':'<p class="note">No misses. Try the running count drill next.</p>')
-      +'<div class="row"><button class="btn" data-dr="setup">Change drill</button><button class="btn primary" data-dr="start">Go again</button></div></section>';
+  const sys=SYSTEMS[cfg.system],d=DR.done;
+  if(DR.kind==='tags'){
+    const n=DR.cards.length,miss=Object.keys(DR.miss);
+    return'<section class="panel"><h2 class="camp-t" style="color:'+(DR.right===n?'var(--win)':'var(--ivory)')+'">'+DR.right+' of '+n+' right</h2>'
+      +'<p class="note">'+d.secs.toFixed(1)+' s for '+lenName(n)+'. That is '+fmtDeck(d.ms)+' ('+(d.ms/1000).toFixed(2)+' s a card).</p>'
+      +(miss.length?'<p class="note">Missed: '+miss.map(r=>r+(r==='10'?'s and faces':'')+' ('+sgn(sys.tags[r])+')').join(', ')+'.</p>':'<p class="note">No misses.</p>')
+      +campLineHTML()+drillButtons()+'</section>';
   }
-  const d=DR.done;let run=0;
-  const groups=[];for(let i=0;i<DR.cards.length;i+=cfg.drillPer)groups.push(DR.cards.slice(i,i+cfg.drillPer));
+  let run=0;
+  const groups=[];for(let i=0;i<DR.cards.length;i+=DR.per)groups.push(DR.cards.slice(i,i+DR.per));
+  const cardTxt=c=>'<span class="'+(isRed(c)?'r':'')+'">'+c.r+c.s+'</span>';
   const rows=groups.map((g,i)=>{const add=g.reduce((a,c)=>a+sys.tags[c.r],0);run+=add;
-    return'<div><span>'+(i*cfg.drillPer+1)+'</span><span>'+g.map(c=>'<span class="'+(isRed(c)?'r':'')+'">'+c.r+c.s+'</span>').join(' ')+'</span><span>'+sgn(add)+'</span><span>'+sgn(run)+'</span></div>';}).join('');
-  return'<section class="panel"><h2 style="margin:0;font:700 22px var(--font-display);color:'+(d.ok?'var(--win)':'var(--lose)')+'">'+(d.ok?'Right on: '+sgn(d.actual):'Off by '+Math.abs(DR.guess-d.actual))+'</h2>'
+    return'<div><span>'+(i*DR.per+1)+'</span><span>'+g.map(cardTxt).join(' ')+'</span><span>'+sgn(add)+'</span><span>'+sgn(run)+'</span></div>';}).join('');
+  const heldAdd=DR.held.reduce((a,c)=>a+sys.tags[c.r],0);
+  return'<section class="panel"><h2 class="camp-t" style="color:'+(d.ok?'var(--win)':'var(--lose)')+'">'+(d.ok?'Right on: '+sgn(d.actual):'Off by '+Math.abs(DR.guess-d.actual))+'</h2>'
     +(d.ok?'':'<p class="note">You said '+sgn(DR.guess)+'. The count was '+sgn(d.actual)+'. Walk the list below to find where it slipped.</p>')
-    +'<p class="note">'+DR.cards.length+' cards in '+d.secs.toFixed(1)+' s ('+(d.ms/1000).toFixed(2)+' s per card). Streak '+dsess.dStreak+', session best '+dsess.dBest+'.</p>'
-    +'<div class="row"><button class="btn" data-dr="setup">Change drill</button><button class="btn primary" data-dr="start">Go again</button></div></section>'
+    +'<p class="note">'+DR.cards.length+' cards in '+d.secs.toFixed(1)+' s. That is '+fmtDeck(d.ms)+' ('+(d.ms/1000).toFixed(2)+' s a card). Streak '+dsess.dStreak+', session best '+dsess.dBest+'.</p>'
+    +(DR.held.length?'<p class="note">Held back: '+DR.held.map(cardTxt).join(' ')+', adding '+sgn(heldAdd)+'. With them, the '+lenName(DR.decks*52)+' add up to '+sgn(deckTotal(DR.decks))+'.</p>':'')
+    +campLineHTML()+drillButtons()+'</section>'
     +'<section class="panel"><h3 class="eyebrow">Card by card</h3><div class="review"><div style="background:none"><span>#</span><span>Cards</span><span>Adds</span><span>Count</span></div>'+rows+'</div></section>';
 }
 function renderDrill(){
@@ -1273,17 +1389,20 @@ function renderDrill(){
 }
 $('#vDrill').addEventListener('click',e=>{
   const b=e.target.closest('[data-dset],[data-dscope],[data-dr],[data-tag],[data-dbump]');if(!b||b.disabled)return;
-  if(b.dataset.dset){cfg[b.dataset.dset]=JSON.parse(b.dataset.val);save();renderDrill();return;}
+  if(b.dataset.dset){cfg[b.dataset.dset]=JSON.parse(b.dataset.val);confirmCamp=false;save();renderDrill();return;}
   if(b.dataset.dscope){dScope=b.dataset.dscope;dMore=false;confirmDrill=false;renderDrill();return;}
   if(b.dataset.tag!==undefined){tagAnswer(Number(b.dataset.tag));return;}
   if(b.dataset.dbump){DR.guess+=Number(b.dataset.dbump);$('#dGuess').value=DR.guess;return;}
   const a=b.dataset.dr;
-  if(a==='start')startDrill();
-  else if(a==='next'&&DR.phase==='run'&&!cfg.drillPace)drillStep();
+  if(a!=='restart')confirmCamp=false;
+  if(a==='start')startDrill(-1);
+  else if(a==='camp'){const i=Number(b.dataset.lvl);if(i>=0&&i<=campState().lvl&&i<LEVELS.length){window.scrollTo(0,0);startDrill(i);}}
+  else if(a==='next'&&DR.phase==='run'&&!DR.pace)drillStep();
   else if(a==='stop'||a==='setup'){clearTimeout(DR.timer);DR.phase='setup';renderDrill();}
   else if(a==='check')drillCheck();
   else if(a==='more'){dMore=true;renderDrill();}
-  else if(a==='reset'){if(!confirmDrill){confirmDrill=true;renderDrill();return;}Object.assign(dstats,DSTATS0);dstats.hist=[];confirmDrill=false;save();renderDrill();}
+  else if(a==='reset'){if(!confirmDrill){confirmDrill=true;renderDrill();return;}const k=dstats.camp;Object.assign(dstats,DSTATS0);dstats.hist=[];dstats.camp=k;confirmDrill=false;save();renderDrill();}
+  else if(a==='restart'){if(!confirmCamp){confirmCamp=true;renderDrill();return;}dstats.camp={lvl:0,prog:0};confirmCamp=false;save();renderDrill();}
   else if(a==='settings')openSettings();
 });
 $('#vDrill').addEventListener('input',e=>{if(e.target.id==='dGuess')DR.guess=parseInt(e.target.value,10)||0;});
@@ -2210,7 +2329,8 @@ document.addEventListener('keydown',e=>{
   if((t==='INPUT'||t==='SELECT')&&!(cfg.view==='drill'&&DR.phase==='answer'))return;
   const k=e.key.toLowerCase();
   if(cfg.view==='drill'){
-    if(DR.phase==='run'&&cfg.drillKind==='rc'&&!cfg.drillPace&&(e.key===' '||e.key==='Enter')){e.preventDefault();drillStep();}
+    if(DR.phase==='run'&&DR.kind==='rc'&&!DR.pace&&(e.key===' '||e.key==='Enter')){e.preventDefault();drillStep();}
+    else if(DR.phase==='run'&&DR.kind==='tags'&&/^[1-9]$/.test(e.key)){const b=document.querySelectorAll('#vDrill [data-tag]')[Number(e.key)-1];if(b)tagAnswer(Number(b.dataset.tag));}
     else if(DR.phase==='answer'&&e.key==='Enter')drillCheck();
     return;
   }
@@ -2224,7 +2344,7 @@ S.bankroll=slots[S.mode].bank;
 if(!restoreTable(slots[S.mode].table)){newShoe();setupTable();}
 render();
 setView(cfg.view);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){save();if(DR.phase==='run'&&cfg.drillPace){stopDrill();renderDrill();}}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){save();if(DR.phase==='run'&&DR.pace){stopDrill();renderDrill();}}});
 window.addEventListener('pagehide',save);
 netInit();
 })();

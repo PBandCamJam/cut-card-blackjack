@@ -19,7 +19,7 @@ Single-file app: `index.html` (CSS, markup, one IIFE script). Keep it dependency
 - Saved between hands only (see `save()`, `snapshot()`, `restoreTable()`). Leaving mid-hand restores the table to just before the deal.
 - Seat 1 is first base and is dealt first. It is drawn on the right of the screen, so play runs clockwise.
 - Computer players are unnamed. Any seat the player taps is theirs.
-- Hints explain why, not just what: `explain()`, `indexWhy()` and `recIns()` return a `reason`. The guide chart is generated from `basic()` via `chartCode()`, so it always follows the current rules. Keep both in sync when changing strategy.
+- Hints explain why, not just what: `explain()`, `indexWhy()` and `recIns()` return a `reason`. The guide chart is generated from `basic()` via `chartCode()`, so it always follows the current rules. Keep both in sync when changing strategy. Every hint card also shows the count it used (`countNote()`, same math as `recommend()` and `recIns()`), even when the count is hidden.
 - `S.seenN` counts every shown card per rank since the shuffle. `checkCount()` asserts the running count equals base plus tags over `seenN`, so the breakdown and the count cannot drift apart. Keep `seenN` updated only through `seen()`.
 
 ## Play together (two phones)

@@ -164,6 +164,7 @@ kbd{font:500 11px var(--font-mono);color:var(--ivory-dim);border:1px solid rgba(
 .hint-card{display:grid;gap:4px;padding:10px 12px;border:1px dashed var(--brass-dim);border-radius:10px;background:var(--shade);font-size:13px}
 .hint-card b{color:var(--brass)}
 .hint-card p{margin:0;color:var(--ivory-dim)}
+.hint-card .hint-count{padding-top:6px;border-top:1px solid rgba(255,255,255,.08);font:500 12px var(--font-mono)}
 .acc{border-top:1px solid rgba(255,255,255,.07)}
 .acc-btn{width:100%;min-height:44px;display:flex;justify-content:space-between;align-items:center;gap:8px;background:transparent;border:0;color:var(--ivory);font:600 14px var(--font-body);cursor:pointer;padding:0;text-align:left}
 .acc-body{display:grid;gap:10px;padding:2px 0 14px}
@@ -926,7 +927,14 @@ function hintBtn(on){
   const open=S.hintOpen||cfg.hint;
   return'<button class="icon-btn sm" data-act="hint" aria-pressed="'+open+'" aria-label="'+(open?'Hide the hint':'Show a hint and why')+'" '+(on&&!cfg.hint?'':'disabled')+'>'+BULB+'</button>';
 }
-function hintCard(head,sub,reason){return'<div class="hint-card"><b>Hint: '+esc(head)+'</b><span>'+esc(sub)+'</span><p>Why: '+esc(reason)+'</p></div>';}
+/* The count behind a hint, shown even when the count is hidden, so you can check your own against it. Same math as recommend() and recIns(). */
+function countNote(){
+  if(cfg.system!=='hilo')return'Count not used: index plays are built for Hi-Lo, and you are counting with '+SYSTEMS[cfg.system].name+'.';
+  if(!cfg.indices)return'Count not used: index plays are off in Settings, under Coaching.';
+  const dl=decksHalf();
+  return'Count used: running '+sgn(S.rc)+' ÷ '+dl.toFixed(1)+' deck'+(dl===1?'':'s')+' left = true '+sgn1(S.rc/dl)+', rounded down to '+sgn(Math.floor(S.rc/dl))+'.';
+}
+function hintCard(head,sub,reason){return'<div class="hint-card"><b>Hint: '+esc(head)+'</b><span>'+esc(sub)+'</span><p>Why: '+esc(reason)+'</p><p class="hint-count">'+esc(countNote())+'</p></div>';}
 /* The hand being decided, next to the dealer's up card, so the decision never needs a scroll back up to the table. */
 function handVsHTML(s,h){
   if(!h||!h.cards.length)return'';

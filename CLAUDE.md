@@ -31,7 +31,10 @@ Single-file app: `index.html` (CSS, markup, one IIFE script). Keep it dependency
 - Test hook: `window.__CC_SIG` can replace the ntfy.sh relay.
 
 ## Views, stats and drills
-- Three tabs share one page: Play (`#vPlay`), Count drill (`#vDrill`) and Stats (`#vStats`). `setView()` switches them and keeps the choice in `cfg.view`.
-- `stats` is lifetime and saved. `sess` has the same shape, lives in memory and starts over when the app opens. Change both through `tally(fn)`.
-- `recordRound()` adds one entry per person per round to `stats.hist` (capped at `HIST_MAX`) and `sessHist`. The count at the deal comes from `S.start` via `startCount()`, using this phone's own system, so the guest gets it from `roundNet.st`.
-- The drills use their own six-deck cards from `shuffle()` and never touch the table shoe, `S.rc` or `S.seenN`. The running count drill starts at 0 for every system.
+- Four tabs share one page: Solo and Together (both `#vPlay`), Drill (`#vDrill`) and Stats (`#vStats`). `setView()` switches them and keeps the choice in `cfg.view`.
+- Solo and Together are separate tables. `S.mode` is 'solo' or 'tog'. Each has its own saved table, bankroll and stats in `slots` and `ST`. `switchMode()` puts one table away and restores the other, only between hands and never while hosting or joined. Play together lives in the Together tab (`#togPanel`), and the guest sends their Together bankroll.
+- Per table, `ST[mode].life` is lifetime and saved (`stats` for solo, `tstats` for Together). `ST[mode].sess` has the same shape, lives in memory and starts over when the app opens. Change both through `tally(fn)`, which follows `S.mode`.
+- `recordRound()` adds one entry per person per round to the current table's `hist` (capped at `HIST_MAX`). The count at the deal comes from `S.start` via `startCount()`, using this phone's own system, so the guest gets it from `roundNet.st`.
+- The drills use their own six-deck cards from `shuffle()` and never touch the table shoe, `S.rc` or `S.seenN`. The running count drill starts at 0 for every system. Drill totals and the drill log are in `dstats` and `dsess`, changed through `dtally(fn)` and `logDrill()`.
+- Saved setups (`presets`) are named copies of the `PKEYS` settings. At someone else's table, applying one puts rule settings in `Net.ownRules` only.
+- The bet size suggestion is the `betHint` setting, not a lightbulb.

@@ -35,7 +35,8 @@
 html{background:var(--rail)}
 body{background:var(--rail);color:var(--ivory);font:15px/1.45 var(--font-body);padding-block:12px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 *{box-sizing:border-box}
-.app{max-width:760px;margin:0 auto;display:grid;gap:12px}
+.app{max-width:760px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.view{grid-template-columns:minmax(0,1fr)}
 .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ivory-dim);font-weight:600}
 button{font-family:inherit}
 :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
@@ -109,7 +110,6 @@ h1{margin:0;font:700 28px/1 var(--font-display);letter-spacing:.02em;white-space
 .seat.other .seat-name{color:var(--friend)}
 .icon-btn.live{position:relative}
 .icon-btn.live::after{content:"";position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:var(--win);box-shadow:0 0 0 2px var(--rail-3)}
-#netOv{z-index:55}
 .codebox{font:700 40px var(--font-mono);letter-spacing:.2em;text-align:center;padding:14px 8px 14px 18px;border-radius:12px;background:rgba(0,0,0,.3);color:var(--brass);user-select:all}
 .joinrow{display:flex;gap:8px}
 .joinrow input{flex:1;min-width:0;min-height:48px;text-align:center;font:600 22px var(--font-mono);letter-spacing:.2em;text-transform:uppercase;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--ivory)}
@@ -243,7 +243,20 @@ input[type=range]{accent-color:var(--brass);width:100%}
 
 /* Views: Play, Count drill and Stats share one tab bar under the header. */
 .tabs{position:sticky;top:0;z-index:20;display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--rail-2);border:1px solid rgba(255,255,255,.06);box-shadow:0 6px 12px var(--rail)}
-.tabs button{flex:1;min-height:40px;border:0;border-radius:9px;background:transparent;color:var(--ivory-dim);font:600 14px var(--font-body);cursor:pointer}
+.tabs button{flex:1;min-width:0;min-height:40px;border:0;border-radius:9px;background:transparent;color:var(--ivory-dim);font:600 14px var(--font-body);cursor:pointer;padding:0 4px}
+.tabs #tab-tog[aria-selected=true]{background:var(--friend)}
+#tabNote{text-align:center}
+#tabNote[hidden]{display:none}
+/* The Together table wears the other player's blue so it never looks like your solo game. */
+.tog .table{box-shadow:inset 0 0 0 2px var(--friend),inset 0 0 60px rgba(0,0,0,.45),0 10px 30px rgba(0,0,0,.4)}
+.tog .bank .eyebrow,.tog #trayLbl{color:var(--friend)}
+#togPanel[hidden],#tableArea[hidden]{display:none}
+.presets{display:grid;gap:8px}
+.joinrow.presetrow input{font:500 15px var(--font-body);letter-spacing:0;text-transform:none;text-align:left;padding:0 12px}
+.preset{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}
+.preset .btn:first-child{justify-content:flex-start;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.netbar{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.netbar p{margin:0;flex:1;min-width:0}
 .tabs button[aria-selected=true]{background:var(--brass);color:var(--ink)}
 .view{display:grid;gap:12px}
 .view[hidden]{display:none}
@@ -294,12 +307,9 @@ input[type=range]{accent-color:var(--brass);width:100%}
       <h1>Cut Card</h1>
       <span class="eyebrow">Blackjack counting practice</span>
     </div>
-    <div class="bank"><span class="eyebrow">Bankroll</span><b id="bank">$1,000</b></div>
+    <div class="bank"><span class="eyebrow" id="bankLbl">Bankroll</span><b id="bank">$1,000</b></div>
     <button class="icon-btn" id="btnGuide" aria-label="Open the strategy and counting guide">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-    </button>
-    <button class="icon-btn" id="btnNet" aria-label="Play with someone on another phone">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c3 .2 5 2.5 5 5.8"/></svg>
     </button>
     <button class="icon-btn" id="btnSettings" aria-label="Open settings">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -307,15 +317,19 @@ input[type=range]{accent-color:var(--brass);width:100%}
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Mode">
-    <button role="tab" id="tab-play" data-view="play" aria-controls="vPlay">Play</button>
-    <button role="tab" id="tab-drill" data-view="drill" aria-controls="vDrill">Count drill</button>
+    <button role="tab" id="tab-solo" data-view="solo" aria-controls="vPlay">Solo</button>
+    <button role="tab" id="tab-tog" data-view="tog" aria-controls="vPlay">Together</button>
+    <button role="tab" id="tab-drill" data-view="drill" aria-controls="vDrill">Drill</button>
     <button role="tab" id="tab-stats" data-view="stats" aria-controls="vStats">Stats</button>
   </nav>
+  <p class="coach bad" id="tabNote" role="status" hidden></p>
 
-  <div class="view" id="vPlay" role="tabpanel" aria-labelledby="tab-play">
+  <div class="view" id="vPlay" role="tabpanel">
+  <section class="panel" id="togPanel" aria-label="Play together" hidden><div id="netBody" style="display:grid;gap:12px"></div></section>
+  <div class="view" id="tableArea">
   <div>
     <div class="tray" aria-hidden="true"><div class="tray-fill" id="trayFill"></div><div class="tray-cut" id="trayCut"></div></div>
-    <div class="tray-meta"><span>Discard tray</span><span id="trayInfo"></span></div>
+    <div class="tray-meta"><span id="trayLbl">Discard tray</span><span id="trayInfo"></span></div>
   </div>
 
   <section class="table" aria-label="Blackjack table">
@@ -350,6 +364,7 @@ input[type=range]{accent-color:var(--brass);width:100%}
   <button class="panel mini" id="miniStats" data-view="stats" aria-label="Open stats"></button>
   <p class="foot">Practice tool only. Cards come from a shoe shuffled with the browser's cryptographic random generator, with one unseen burn card and a cut card at your chosen depth.</p>
   </div>
+  </div>
 
   <div class="view" id="vDrill" role="tabpanel" aria-labelledby="tab-drill" hidden></div>
   <div class="view" id="vStats" role="tabpanel" aria-labelledby="tab-stats" hidden></div>
@@ -369,12 +384,6 @@ input[type=range]{accent-color:var(--brass);width:100%}
     <div id="guideBody" style="display:grid;gap:12px"></div>
   </div>
 </div>
-<div class="overlay" id="netOv" hidden>
-  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="nT">
-    <div class="sheet-head"><h2 id="nT">Play together</h2><button class="btn small" data-n="close">Close</button></div>
-    <div id="netBody" style="display:grid;gap:12px"></div>
-  </div>
-</div>
 <div class="overlay" id="quizOv" hidden>
   <div class="sheet" role="dialog" aria-modal="true" id="quizBody"></div>
 </div>
@@ -389,12 +398,15 @@ const CHIPC={5:'#a3241d',25:'#1d6b48',100:'#26262b',500:'#5b3a8c'};
 const SPEEDS={relaxed:650,casino:380,fast:150};
 const DEFAULTS={decks:6,pen:75,s17:true,bjPay:'3:2',das:true,doubleOn:'any',surrender:'off',resplitAces:false,
   system:'hilo',quiz:'3',askTC:false,showRC:false,showCards:false,showEdge:false,unit:10,hint:false,feedback:true,indices:true,speed:'casino',
-  bots:3,startSeat:3,turnover:'stay',view:'play',drillKind:'rc',drillLen:20,drillPer:1,drillPace:1000};
+  bots:3,startSeat:3,turnover:'stay',view:'solo',mode:'solo',betHint:true,drillKind:'rc',drillLen:20,drillPer:1,drillPace:1000};
 /* Computer player habits. They are never labelled at the table, but each seat plays differently. None play perfectly. */
 const STYLE_KEYS=['book','cautious','nobust','mimic','hunch'];
-const STATS0={hands:0,wins:0,losses:0,pushes:0,net:0,wager:0,bj:0,busts:0,best:0,worst:0,cAsked:0,cRight:0,cStreak:0,cBest:0,tAsked:0,tRight:0,sDec:0,sRight:0,
-  dRuns:0,dRight:0,dStreak:0,dBest:0,dCards:0,dFast:0,vAns:0,vRight:0};
-const HIST_MAX=500;
+const STATS0={hands:0,wins:0,losses:0,pushes:0,net:0,wager:0,bj:0,busts:0,best:0,worst:0,cAsked:0,cRight:0,cStreak:0,cBest:0,tAsked:0,tRight:0,sDec:0,sRight:0};
+/* Count drill totals. Kept apart from table stats because drills belong to neither table. */
+const DSTATS0={dRuns:0,dRight:0,dStreak:0,dBest:0,dCards:0,dFast:0,vRuns:0,vAns:0,vRight:0,vFast:0};
+const HIST_MAX=500,DHIST_MAX=300,PRESET_MAX=12;
+/* Settings a saved setup holds. Screen state (tab, open panels, drill options) is left out. */
+const PKEYS=Object.keys(DEFAULTS).filter(k=>['view','mode','showCards','showEdge','drillKind','drillLen','drillPer','drillPace'].indexOf(k)<0);
 const T=m=>{const o={};for(const r of RANKS)o[r]=(r==='J'||r==='Q'||r==='K')?m['10']:m[r];return o;};
 const SYSTEMS={
   hilo:{name:'Hi-Lo',balanced:true,tags:T({A:-1,2:1,3:1,4:1,5:1,6:1,7:0,8:0,9:0,10:-1})},
@@ -425,20 +437,33 @@ const INDEX=[
 
 /* ---------- storage ---------- */
 const KEY='cutcard.v1';
+function pickKeys(o,keys){const r={};keys.forEach(k=>{r[k]=o[k];});return r;}
 function loadSaved(){try{const j=JSON.parse(localStorage.getItem(KEY));return j&&typeof j==='object'?j:{};}catch(e){return {};}}
 const saved=loadSaved();
 const cfg=Object.assign({},DEFAULTS,saved.cfg||{});
-const stats=Object.assign({},STATS0,saved.stats||{});
-/* Lifetime round log, newest last. Session numbers live in memory only and start over when the app opens. */
-stats.hist=Array.isArray(stats.hist)?stats.hist.filter(e=>e&&typeof e==='object'&&Number.isFinite(e.net)).slice(-HIST_MAX):[];
-const sess=Object.assign({},STATS0),sessHist=[];
-const tally=f=>{f(stats);f(sess);};
+/* Solo and Together are separate tables: each has its own saved table, bankroll and stats.
+   Lifetime stats carry a round log, newest last. Session numbers live in memory only and start over when the app opens. */
+const okHist=(h,max,num)=>Array.isArray(h)?h.filter(e=>e&&typeof e==='object'&&Number.isFinite(e[num])).slice(-max):[];
+function mkStats(o){const s=Object.assign({},STATS0,o||{});s.hist=okHist(s.hist,HIST_MAX,'net');return s;}
+const stats=mkStats(saved.stats),tstats=mkStats(saved.tstats);
+/* Drill totals used to live in stats, so carry them over once. */
+const dstats=Object.assign({},DSTATS0,saved.dstats||pickKeys(saved.stats||{},Object.keys(DSTATS0).filter(k=>saved.stats&&Number.isFinite(saved.stats[k]))));
+dstats.hist=okHist(dstats.hist,DHIST_MAX,'t');
+const sess=Object.assign({},STATS0),tsess=Object.assign({},STATS0),dsess=Object.assign({},DSTATS0);
+const ST={solo:{life:stats,sess:sess,sh:[]},tog:{life:tstats,sess:tsess,sh:[]}},dsessHist=[];
+const tally=f=>{const m=ST[S.mode]||ST.solo;f(m.life);f(m.sess);};
+const dtally=f=>{f(dstats);f(dsess);};
+const bankOK=b=>typeof b==='number'&&Number.isFinite(b)&&b>=0;
+const slots={solo:{table:saved.table,bank:bankOK(saved.bankroll)?saved.bankroll:START_BANK},tog:{table:saved.tTable,bank:bankOK(saved.tBank)?saved.tBank:START_BANK}};
+/* Named setups. Each holds a copy of the PKEYS settings. */
+const presets=Array.isArray(saved.presets)?saved.presets.filter(p=>p&&typeof p.name==='string'&&p.name.trim()&&p.cfg&&typeof p.cfg==='object')
+  .slice(0,PRESET_MAX).map(p=>({name:p.name.trim().slice(0,24),cfg:pickKeys(Object.assign({},DEFAULTS,p.cfg),PKEYS)})):[];
 const S={
   shoe:[],pos:0,total:0,cut:0,rc:0,rcRound:0,seenN:{},needShuffle:true,me:'h',bankOther:START_BANK,rnd:0,settled:0,msgG:'',msgClsG:'',roundNet:{},
   bankroll:typeof saved.bankroll==='number'&&saved.bankroll>=0?saved.bankroll:START_BANK,
   phase:'bet',dealer:{cards:[],hole:true,flip:false},seats:[],sel:-1,turn:{s:-1,h:0},insSeat:-1,
   msg:'Tap a seat to sit, then place your bet.',msgCls:'',coach:'',coachCls:'',hintOpen:false,sinceQuiz:0,
-  rd:{dec:0,ok:0},start:{sn:{},pos:0,len:0}
+  rd:{dec:0,ok:0},start:{sn:{},pos:0,len:0},mode:cfg.mode==='tog'?'tog':'solo'
 };
 let busy=false;
 /* Saved only between hands, so leaving mid-hand puts the table back as it was before the deal and no money is lost. */
@@ -449,14 +474,16 @@ function snapshot(){
 }
 function save(){
   if(S.phase!=='bet')return;
+  const guest=Net.role==='guest';
+  if(guest&&!Net.ready)return;
+  /* At someone else's table, keep your own rules and your own saved Together table. Only your bankroll and stats move on. */
+  slots[S.mode]={table:guest?slots.tog.table:snapshot(),bank:S.bankroll};
   try{
-    /* At someone else's table, keep your own rules and your own saved table. Only your bankroll and stats move on. */
-    if(Net.role==='guest'){if(Net.ready)localStorage.setItem(KEY,JSON.stringify({cfg:Object.assign({},cfg,Net.ownRules),stats:stats,bankroll:S.bankroll,table:saved.table}));return;}
-    localStorage.setItem(KEY,JSON.stringify({cfg:cfg,stats:stats,bankroll:S.bankroll,table:snapshot()}));
+    localStorage.setItem(KEY,JSON.stringify({cfg:guest?Object.assign({},cfg,Net.ownRules):cfg,stats:stats,tstats:tstats,dstats:dstats,presets:presets,
+      bankroll:slots.solo.bank,table:slots.solo.table,tBank:slots.tog.bank,tTable:slots.tog.table}));
   }catch(e){}
 }
-function restoreTable(){
-  const t=saved.table;
+function restoreTable(t){
   try{
     if(!t||!Array.isArray(t.shoe)||t.shoe.length!==cfg.decks*52||!Array.isArray(t.seats)||t.seats.length!==5)return false;
     if(!Number.isInteger(t.pos)||t.pos<1||t.pos>t.shoe.length||!Number.isInteger(t.cut)||!Number.isInteger(t.rc))return false;
@@ -473,6 +500,7 @@ function restoreTable(){
     if(t.seenN&&typeof t.seenN==='object'&&RANKS.every(r=>Number.isInteger(t.seenN[r]||0)&&(t.seenN[r]||0)>=0))RANKS.forEach(r=>{if(t.seenN[r])S.seenN[r]=t.seenN[r];});
     else for(let i=(t.cut===shoe.length?0:1);i<t.pos;i++)S.seenN[shoe[i].r]=(S.seenN[shoe[i].r]||0)+1;
     S.sinceQuiz=Number(t.sinceQuiz)||0;S.seats=seats;S.sel=Number.isInteger(t.sel)&&t.sel>=0&&t.sel<5?t.sel:-1;
+    S.dealer={cards:[],hole:true,flip:false};S.phase='bet';S.coach='';S.msgCls='';
     fitBets();S.msg='Welcome back. Your table, bankroll, shoe and running count are as you left them.';
     return true;
   }catch(e){return false;}
@@ -837,8 +865,7 @@ function seatHTML(s,i){
     +'<button class="chipspot" aria-label="'+esc(label)+'">'+spot+'</button><div class="seat-name">'+(i+1)+'</div></div>';
 }
 function suggestHTML(){
-  const open=cfg.showRC||cfg.hint||S.hintOpen;
-  if(!open)return'';
+  if(!cfg.betHint)return'';
   if(cfg.system==='hilo'){
     const tc=Math.floor(S.rc/decksHalf()),u=tc<=1?1:tc===2?2:tc===3?4:tc===4?6:8;
     const amt=Math.max(MIN,Math.min(u*cfg.unit,roomFor(S.sel)));
@@ -862,7 +889,7 @@ function renderControls(){
     let top;
     if(s&&mine(s)){
       const room=roomFor(S.sel);
-      top='<div class="bet-top"><div><span class="eyebrow">Seat '+(S.sel+1)+' bet</span><b class="bet-amt">'+fmt(s.bet)+'</b></div>'+hintBtn(true)+'</div>'
+      top='<div class="bet-top"><div><span class="eyebrow">Seat '+(S.sel+1)+' bet</span><b class="bet-amt">'+fmt(s.bet)+'</b></div></div>'
         +'<div class="chips">'+[5,25,100,500].map(v=>'<button class="chip" style="--c:'+CHIPC[v]+'" data-act="chip" data-v="'+v+'" '+(s.bet+v>room?'disabled':'')+' aria-label="Add '+v+' dollars to seat '+(S.sel+1)+'">'+v+'</button>').join('')
         +'<button class="btn ghost" data-act="clear">Clear</button></div>'+suggestHTML()
         +'<div class="bet-meta"><span class="limits">Table limits '+fmt(MIN)+' to '+fmt(MAX)+'</span><button class="link" data-act="leave">Leave seat '+(S.sel+1)+'</button></div>';
@@ -993,11 +1020,11 @@ function renderCount(){
 }
 /* ---------- stats view ---------- */
 const pc=(a,b)=>b?Math.round(a/b*100)+'%':'--';
-let statScope='sess',statMore=false,confirmStats=false;
+let statScope='sess',statMode='solo',statMore=false,confirmStats=false;
 function renderMini(){
-  const o=sess;
+  const o=ST[S.mode].sess;
   $('#miniStats').innerHTML=o.hands||o.cAsked||o.dRuns
-    ?'<span>This session: <b>'+o.hands+'</b> round'+(o.hands===1?'':'s')+' · <b class="'+(o.net>0?'pos':o.net<0?'neg':'')+'">'+fmtS(o.net)+'</b> · plays <b>'+pc(o.sRight,o.sDec)+'</b></span><span class="link">Stats</span>'
+    ?'<span>'+(S.mode==='tog'?'Together':'Solo')+' session: <b>'+o.hands+'</b> round'+(o.hands===1?'':'s')+' · <b class="'+(o.net>0?'pos':o.net<0?'neg':'')+'">'+fmtS(o.net)+'</b> · plays <b>'+pc(o.sRight,o.sDec)+'</b></span><span class="link">Stats</span>'
     :'<span>Your stats and round history live in the Stats tab.</span><span class="link">Stats</span>';
 }
 const tile=(label,val,sub,cls)=>'<div class="tile"><span class="eyebrow">'+label+'</span><b'+(cls?' class="'+cls+'"':'')+'>'+val+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div>';
@@ -1009,7 +1036,8 @@ function sparkHTML(h){
   const lo=Math.min(0,...pts),hi=Math.max(0,...pts),span=hi-lo||1,W=300,H=110;
   const x=i=>(i/(pts.length-1)*W).toFixed(1),y=v=>(4+(hi-v)/span*(H-8)).toFixed(1);
   const d=pts.map((v,i)=>(i?'L':'M')+x(i)+' '+y(v)).join('');
-  return'<div class="spark" data-pts="'+pts.join(',')+'"><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Running total from '+fmt(0)+' to '+fmtS(pts[pts.length-1])+' over '+h.length+' rounds">'
+  const tips=pts.map((v,i)=>(i?'Round '+h[i-1].n+': ':'Start: ')+fmtS(v));
+  return'<div class="spark" data-tips="'+esc(tips.join('|'))+'"><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Running total from '+fmt(0)+' to '+fmtS(pts[pts.length-1])+' over '+h.length+' rounds">'
     +'<line x1="0" x2="'+W+'" y1="'+y(0)+'" y2="'+y(0)+'" stroke="var(--seat-line)" stroke-width="1" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>'
     +'<path d="'+d+'" fill="none" stroke="var(--brass)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'
     +'<line class="cross" x1="0" x2="0" y1="0" y2="'+H+'" stroke="var(--ivory-dim)" stroke-width="1" vector-effect="non-scaling-stroke" visibility="hidden"/></svg>'
@@ -1038,12 +1066,13 @@ function roundRow(e){
     +(tags.length?'<div class="tags" style="grid-column:1/-1">'+tags.map(x=>'<span class="tagx">'+x+'</span>').join('')+'</div>':'')+'</div>';
 }
 function renderStatsView(){
-  const el=$('#vStats'),life=statScope==='life',o=life?stats:sess,h=life?stats.hist:sessHist;
+  const el=$('#vStats'),life=statScope==='life',m=ST[statMode],o=life?m.life:m.sess,h=life?m.life.hist:m.sh,tog=statMode==='tog';
   const rounds=h.slice().reverse(),shown=statMore?rounds:rounds.slice(0,15);
   const ret=o.wager?(o.net/o.wager*100):0;
   el.innerHTML=
-    '<div class="seg" role="group" aria-label="Which stats"><button aria-pressed="'+!life+'" data-scope="sess">This session</button><button aria-pressed="'+life+'" data-scope="life">Lifetime</button></div>'
-    +'<p class="sub">'+(life?'Everything on this phone since you started'+(stats.hist.length>=HIST_MAX?'. The round log keeps your last '+HIST_MAX+' rounds.':'.'):'Since you opened the app.')+'</p>'
+    '<div class="seg" role="group" aria-label="Which table"><button aria-pressed="'+!tog+'" data-smode="solo">Solo</button><button aria-pressed="'+tog+'" data-smode="tog">Together</button></div>'
+    +'<div class="seg" role="group" aria-label="Which period"><button aria-pressed="'+!life+'" data-scope="sess">This session</button><button aria-pressed="'+life+'" data-scope="life">Lifetime</button></div>'
+    +'<p class="sub">'+(tog?'Rounds at a shared table, hosting or joining. ':'Your own table. ')+(life?'Everything on this phone since you started'+(h.length>=HIST_MAX?'. The round log keeps your last '+HIST_MAX+' rounds.':'.'):'Since you opened the app.')+' Count drill progress is in the Drill tab.</p>'
     +'<section class="panel"><h3 class="eyebrow">Results</h3><div class="tiles">'
     +tile('Rounds',o.hands,o.wins+' won · '+o.losses+' lost · '+o.pushes+' push')
     +tile('Win rate',pc(o.wins,o.wins+o.losses),'pushes left out')
@@ -1059,37 +1088,35 @@ function renderStatsView(){
     +tile('Strategy',pc(o.sRight,o.sDec),o.sDec+' decision'+(o.sDec===1?'':'s'))
     +tile('Count quiz',pc(o.cRight,o.cAsked),o.cAsked+' checks · best streak '+o.cBest)
     +tile('True count',pc(o.tRight,o.tAsked),o.tAsked?o.tAsked+' checks':'turn on in Settings')
-    +tile('Count drills',pc(o.dRight,o.dRuns),o.dRuns?o.dRuns+' run'+(o.dRuns===1?'':'s')+' · '+o.dCards+' cards'+(o.dFast?' · best '+(o.dFast/1000).toFixed(2)+'s/card':''):'try the Count drill tab')
-    +tile('Card values',pc(o.vRight,o.vAns),o.vAns+' answer'+(o.vAns===1?'':'s'))
     +'</div></section>'
     +'<section class="panel"><h3 class="eyebrow">Results by count</h3>'+byCountHTML(h)+'</section>'
     +'<section class="panel"><h3 class="eyebrow">Rounds</h3>'
     +(shown.length?'<div class="rounds">'+shown.map(roundRow).join('')+'</div>'+(rounds.length>shown.length?'<button class="btn small" data-st="more">Show all '+rounds.length+'</button>':''):'<p class="sub">No rounds yet. Each round you play shows up here with the count, your bet, the result and how many plays you got right.</p>')
     +'</section>'
-    +(life?'<button class="btn" data-st="reset">'+(confirmStats?'Tap again to erase all stats':'Reset lifetime stats')+'</button>':'');
+    +(life?'<button class="btn" data-st="reset">'+(confirmStats?'Tap again to erase '+(tog?'Together':'solo')+' stats':'Reset lifetime '+(tog?'Together':'solo')+' stats')+'</button>':'');
 }
 $('#vStats').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.scope){statScope=b.dataset.scope;statMore=false;confirmStats=false;renderStatsView();}
+  else if(b.dataset.smode){statMode=b.dataset.smode;statMore=false;confirmStats=false;renderStatsView();}
   else if(b.dataset.st==='more'){statMore=true;renderStatsView();}
   else if(b.dataset.st==='reset'){
     if(!confirmStats){confirmStats=true;renderStatsView();return;}
-    Object.assign(stats,STATS0);stats.hist=[];confirmStats=false;save();renderStatsView();renderMini();
+    const l=ST[statMode].life;Object.assign(l,STATS0);l.hist=[];confirmStats=false;save();renderStatsView();renderMini();
   }
 });
 /* Hover or drag on the running total to read any round. */
 function sparkPoint(e){
   const sp=e.target.closest&&e.target.closest('.spark');if(!sp)return;
-  const pts=sp.dataset.pts.split(',').map(Number),svg=sp.querySelector('svg'),r=svg.getBoundingClientRect();
-  const f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),i=Math.round(f*(pts.length-1));
-  const cx=i/(pts.length-1)*300,tip=sp.querySelector('.tip'),cr=sp.querySelector('.cross');
+  const tips=sp.dataset.tips.split('|'),n=tips.length,svg=sp.querySelector('svg'),r=svg.getBoundingClientRect();
+  const f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),i=Math.round(f*(n-1));
+  const cx=i/(n-1)*300,tip=sp.querySelector('.tip'),cr=sp.querySelector('.cross');
   cr.setAttribute('x1',cx);cr.setAttribute('x2',cx);cr.setAttribute('visibility','visible');
-  tip.hidden=false;tip.textContent=(i?'Round '+i+': ':'Start: ')+fmtS(pts[i]);
-  tip.style.left=Math.max(40,Math.min(r.width-40,i/(pts.length-1)*r.width))+'px';
+  tip.hidden=false;tip.textContent=tips[i];
+  tip.style.left=Math.max(60,Math.min(r.width-60,i/(n-1)*r.width))+'px';
 }
-$('#vStats').addEventListener('pointermove',sparkPoint);
-$('#vStats').addEventListener('pointerdown',sparkPoint);
-$('#vStats').addEventListener('pointerleave',()=>{const sp=$('#vStats .spark');if(sp){sp.querySelector('.tip').hidden=true;sp.querySelector('.cross').setAttribute('visibility','hidden');}},true);
+function sparkOff(){document.querySelectorAll('.spark').forEach(sp=>{sp.querySelector('.tip').hidden=true;sp.querySelector('.cross').setAttribute('visibility','hidden');});}
+['#vStats','#vDrill'].forEach(id=>{const el=$(id);el.addEventListener('pointermove',sparkPoint);el.addEventListener('pointerdown',sparkPoint);el.addEventListener('pointerleave',sparkOff);});
 
 /* ---------- count drill ---------- */
 /* Two drills, both with their own cards so the table shoe and its count are never touched.
@@ -1118,16 +1145,74 @@ function drillStep(){
 function drillCheck(){
   const sys=SYSTEMS[cfg.system];let actual=0;for(const c of DR.cards)actual+=sys.tags[c.r];
   const ok=DR.guess===actual,n=DR.cards.length,ms=(DR.t1-DR.t0)/n;
-  tally(o=>{o.dRuns++;o.dCards+=n;if(ok){o.dRight++;o.dStreak++;o.dBest=Math.max(o.dBest,o.dStreak);if(n>=20&&(!o.dFast||ms<o.dFast))o.dFast=Math.round(ms);}else o.dStreak=0;});
-  DR.done={ok:ok,actual:actual,ms:ms,secs:(DR.t1-DR.t0)/1000};DR.phase='result';save();renderDrill();
+  dtally(o=>{o.dRuns++;o.dCards+=n;if(ok){o.dRight++;o.dStreak++;o.dBest=Math.max(o.dBest,o.dStreak);if(n>=20&&(!o.dFast||ms<o.dFast))o.dFast=Math.round(ms);}else o.dStreak=0;});
+  DR.done={ok:ok,actual:actual,ms:ms,secs:(DR.t1-DR.t0)/1000};DR.phase='result';
+  logDrill({k:'rc',n:n,per:cfg.drillPer,pace:cfg.drillPace,ok:ok?1:0,g:DR.guess,a:actual,ms:Math.round(ms)});
+  save();renderDrill();
 }
 function tagAnswer(v){
   if(DR.phase!=='run'||DR.ans)return;
   const c=DR.cards[DR.i],sys=SYSTEMS[cfg.system],ok=sys.tags[c.r]===v;
-  tally(o=>{o.vAns++;if(ok)o.vRight++;});
+  dtally(o=>{o.vAns++;if(ok)o.vRight++;});
   if(ok)DR.right++;else{const k=c.r==='J'||c.r==='Q'||c.r==='K'?'10':c.r;DR.miss[k]=(DR.miss[k]||0)+1;}
   DR.ans={v:v,ok:ok};renderDrill();
-  DR.timer=setTimeout(()=>{DR.ans=null;DR.i++;if(DR.i>=DR.cards.length){DR.t1=performance.now();DR.phase='result';save();}renderDrill();},ok?220:900);
+  DR.timer=setTimeout(()=>{DR.ans=null;DR.i++;if(DR.i>=DR.cards.length)finishTags();renderDrill();},ok?220:900);
+}
+/* One line in the drill log for each finished run, lifetime and session. */
+function logDrill(e){
+  e.t=Date.now();e.sys=cfg.system;
+  dstats.hist.push(e);if(dstats.hist.length>DHIST_MAX)dstats.hist.splice(0,dstats.hist.length-DHIST_MAX);
+  dsessHist.push(e);
+}
+function finishTags(){
+  DR.t1=performance.now();DR.phase='result';
+  const n=DR.cards.length,ms=(DR.t1-DR.t0)/n,perfect=DR.right===n;
+  dtally(o=>{o.vRuns++;if(perfect&&(!o.vFast||ms<o.vFast))o.vFast=Math.round(ms);});
+  logDrill({k:'tags',n:n,r:DR.right,ms:Math.round(ms),miss:Object.keys(DR.miss).join(' ')});
+  save();
+}
+const paceName=ms=>(PACES.find(p=>p[1]===ms)||['Custom'])[0];
+let dScope='sess',dMore=false,confirmDrill=false;
+/* Seconds per card for each running count run, oldest first. Filled dots were right, hollow ones were missed. */
+function paceChartHTML(h){
+  if(h.length<2)return'<p class="sub">Finish two running count runs to see your pace over time.</p>';
+  const v=h.map(e=>e.ms/1000),hi=Math.max(...v)*1.1||1,W=300,H=120;
+  const x=i=>(8+i/(h.length-1)*(W-16)).toFixed(1),y=s=>(8+(1-s/hi)*(H-24)).toFixed(1);
+  const d=v.map((s,i)=>(i?'L':'M')+x(i)+' '+y(s)).join('');
+  const tips=h.map((e,i)=>'Run '+(i+1)+': '+v[i].toFixed(2)+' s per card, '+(e.ok?'right':'missed'));
+  const dots=h.map((e,i)=>'<circle cx="'+x(i)+'" cy="'+y(v[i])+'" r="4" stroke="var(--brass)" stroke-width="2" fill="'+(e.ok?'var(--brass)':'var(--rail-2)')+'"/>').join('');
+  return'<div class="spark" data-tips="'+esc(tips.join('|'))+'"><svg viewBox="0 0 '+W+' '+H+'" style="height:auto" role="img" aria-label="Seconds per card over '+h.length+' runs, from '+v[0].toFixed(2)+' to '+v[v.length-1].toFixed(2)+'">'
+    +'<line x1="0" x2="'+W+'" y1="'+y(0)+'" y2="'+y(0)+'" stroke="var(--seat-line)" stroke-width="1"/>'
+    +'<path d="'+d+'" fill="none" stroke="var(--brass)" stroke-width="2" stroke-linejoin="round" opacity=".7"/>'+dots
+    +'<line class="cross" x1="0" x2="0" y1="0" y2="'+H+'" stroke="var(--ivory-dim)" stroke-width="1" visibility="hidden"/></svg><span class="tip" hidden></span></div>'
+    +'<div class="meter-key"><span>First run</span><span>● right ○ missed · lower is faster</span><span>Latest</span></div>';
+}
+function drillRow(e){
+  const when=new Date(e.t).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),sp=(e.ms/1000).toFixed(2)+' s/card';
+  if(e.k==='tags')return'<div class="rd"><span>Card values · '+e.n+' cards</span><b class="'+(e.r===e.n?'pos':'')+'">'+e.r+' of '+e.n+'</b>'
+    +'<small>'+sp+(e.miss?' · missed '+esc(e.miss):'')+'</small><small>'+when+'</small></div>';
+  return'<div class="rd"><span>Running count · '+e.n+' cards · '+e.per+' at a time · '+paceName(e.pace)+'</span><b class="'+(e.ok?'pos':'neg')+'">'+(e.ok?'Right '+sgn(e.a):'Off by '+Math.abs(e.g-e.a))+'</b>'
+    +'<small>'+(e.ok?'':'Said '+sgn(e.g)+', was '+sgn(e.a)+' · ')+sp+(e.sys&&SYSTEMS[e.sys]?' · '+SYSTEMS[e.sys].name:'')+'</small><small>'+when+'</small></div>';
+}
+function drillStatsHTML(){
+  const life=dScope==='life',o=life?dstats:dsess,h=life?dstats.hist:dsessHist;
+  const rc=h.filter(e=>e.k==='rc'),last=rc.slice(-10),lastOk=last.filter(e=>e.ok).length;
+  const rows=h.slice().reverse(),shown=dMore?rows:rows.slice(0,10);
+  return'<section class="panel"><h3 class="eyebrow">Your drill progress</h3>'
+    +'<div class="seg" role="group" aria-label="Which period"><button aria-pressed="'+!life+'" data-dscope="sess">This session</button><button aria-pressed="'+life+'" data-dscope="life">Lifetime</button></div>'
+    +'<p class="sub">Running count</p><div class="tiles">'
+    +tile('Accuracy',pc(o.dRight,o.dRuns),o.dRuns+' run'+(o.dRuns===1?'':'s')+' · '+o.dCards+' cards')
+    +tile('Last 10',last.length?lastOk+' of '+last.length:'--','recent runs right')
+    +tile('Streak',o.dStreak,'best '+o.dBest)
+    +tile('Best pace',o.dFast?(o.dFast/1000).toFixed(2)+'s':'--','per card, right, 20+ cards')
+    +'</div><p class="sub">Card values</p><div class="tiles">'
+    +tile('Accuracy',pc(o.vRight,o.vAns),o.vAns+' card'+(o.vAns===1?'':'s'))
+    +tile('Best pace',o.vFast?(o.vFast/1000).toFixed(2)+'s':'--','per card, no misses')
+    +'</div><h3 class="eyebrow">Pace, running count</h3>'+paceChartHTML(rc.slice(-60))
+    +'<h3 class="eyebrow">Runs</h3>'
+    +(shown.length?'<div class="rounds">'+shown.map(drillRow).join('')+'</div>'+(rows.length>shown.length?'<button class="btn small" data-dr="more">Show all '+rows.length+'</button>':''):'<p class="sub">No runs yet. Every drill you finish shows up here.</p>')
+    +(life?'<button class="btn" data-dr="reset">'+(confirmDrill?'Tap again to erase drill stats':'Reset drill stats')+'</button>':'')
+    +'</section>';
 }
 function drillSetupHTML(){
   const sys=SYSTEMS[cfg.system],tags=cfg.drillKind==='tags';
@@ -1138,7 +1223,8 @@ function drillSetupHTML(){
       +fld('Cards at a time',dseg('drillPer',[['1',1],['2',2],['3',3]]),'Counting cards in pairs is how pros keep up at a real table: cancel a +1 and a −1 and move on.')
       +fld('Pace',dseg('drillPace',PACES),'Tap means you move on when you are ready. Casino dealing is around Quick.'))
     +'<button class="btn primary big" data-dr="start">Start</button></section>'
-    +'<section class="panel"><h3 class="eyebrow">Card values</h3><div id="legend2" class="legend"><div>'+legendHTML()+'</div></div></section>';
+    +'<section class="panel"><h3 class="eyebrow">Card values</h3><div id="legend2" class="legend"><div>'+legendHTML()+'</div></div></section>'
+    +drillStatsHTML();
 }
 function drillRunHTML(){
   const n=DR.cards.length,tags=cfg.drillKind==='tags';
@@ -1176,7 +1262,7 @@ function drillResultHTML(){
     return'<div><span>'+(i*cfg.drillPer+1)+'</span><span>'+g.map(c=>'<span class="'+(isRed(c)?'r':'')+'">'+c.r+c.s+'</span>').join(' ')+'</span><span>'+sgn(add)+'</span><span>'+sgn(run)+'</span></div>';}).join('');
   return'<section class="panel"><h2 style="margin:0;font:700 22px var(--font-display);color:'+(d.ok?'var(--win)':'var(--lose)')+'">'+(d.ok?'Right on: '+sgn(d.actual):'Off by '+Math.abs(DR.guess-d.actual))+'</h2>'
     +(d.ok?'':'<p class="note">You said '+sgn(DR.guess)+'. The count was '+sgn(d.actual)+'. Walk the list below to find where it slipped.</p>')
-    +'<p class="note">'+DR.cards.length+' cards in '+d.secs.toFixed(1)+' s ('+(d.ms/1000).toFixed(2)+' s per card). Streak '+sess.dStreak+', session best '+sess.dBest+'.</p>'
+    +'<p class="note">'+DR.cards.length+' cards in '+d.secs.toFixed(1)+' s ('+(d.ms/1000).toFixed(2)+' s per card). Streak '+dsess.dStreak+', session best '+dsess.dBest+'.</p>'
     +'<div class="row"><button class="btn" data-dr="setup">Change drill</button><button class="btn primary" data-dr="start">Go again</button></div></section>'
     +'<section class="panel"><h3 class="eyebrow">Card by card</h3><div class="review"><div style="background:none"><span>#</span><span>Cards</span><span>Adds</span><span>Count</span></div>'+rows+'</div></section>';
 }
@@ -1186,8 +1272,9 @@ function renderDrill(){
   if(DR.phase==='answer'){const i=$('#dGuess');if(i&&matchMedia('(hover:hover)').matches)i.focus();}
 }
 $('#vDrill').addEventListener('click',e=>{
-  const b=e.target.closest('[data-dset],[data-dr],[data-tag],[data-dbump]');if(!b||b.disabled)return;
+  const b=e.target.closest('[data-dset],[data-dscope],[data-dr],[data-tag],[data-dbump]');if(!b||b.disabled)return;
   if(b.dataset.dset){cfg[b.dataset.dset]=JSON.parse(b.dataset.val);save();renderDrill();return;}
+  if(b.dataset.dscope){dScope=b.dataset.dscope;dMore=false;confirmDrill=false;renderDrill();return;}
   if(b.dataset.tag!==undefined){tagAnswer(Number(b.dataset.tag));return;}
   if(b.dataset.dbump){DR.guess+=Number(b.dataset.dbump);$('#dGuess').value=DR.guess;return;}
   const a=b.dataset.dr;
@@ -1195,25 +1282,56 @@ $('#vDrill').addEventListener('click',e=>{
   else if(a==='next'&&DR.phase==='run'&&!cfg.drillPace)drillStep();
   else if(a==='stop'||a==='setup'){clearTimeout(DR.timer);DR.phase='setup';renderDrill();}
   else if(a==='check')drillCheck();
+  else if(a==='more'){dMore=true;renderDrill();}
+  else if(a==='reset'){if(!confirmDrill){confirmDrill=true;renderDrill();return;}Object.assign(dstats,DSTATS0);dstats.hist=[];confirmDrill=false;save();renderDrill();}
   else if(a==='settings')openSettings();
 });
 $('#vDrill').addEventListener('input',e=>{if(e.target.id==='dGuess')DR.guess=parseInt(e.target.value,10)||0;});
 
 /* ---------- views ---------- */
+/* Solo and Together each have their own table. Switching puts one away (shoe, seats, bankroll) and brings the other out. */
+function switchMode(m){
+  if(m===S.mode)return'';
+  if(Net.role)return Net.role==='host'?'Stop hosting first to go back to your solo table.':'Leave the shared table first to go back to your solo table.';
+  if(S.phase!=='bet'||busy)return'Finish this hand first.';
+  save();
+  S.mode=m;cfg.mode=m;
+  S.bankroll=slots[m].bank;
+  if(!restoreTable(slots[m].table)){newShoe();setupTable();S.dealer={cards:[],hole:true,flip:false};S.coach='';S.msgCls='';}
+  S.msg=m==='tog'?'Together table. Its bankroll and stats are kept apart from your solo game.':'Your solo table, as you left it.';
+  S.rd={dec:0,ok:0};S.roundNet={};
+  save();
+  return'';
+}
+let noteTimer=0;
+function tabNote(msg){const n=$('#tabNote');n.textContent=msg;n.hidden=false;clearTimeout(noteTimer);noteTimer=setTimeout(()=>{n.hidden=true;},3500);}
+function renderMode(){
+  const tog=S.mode==='tog',showTable=!tog||Net.role==='host'||(Net.role==='guest'&&Net.ready);
+  document.body.classList.toggle('tog',tog);
+  $('#togPanel').hidden=!tog;$('#tableArea').hidden=!showTable;
+  $('#bankLbl').textContent=tog?'Together':'Bankroll';
+  $('#trayLbl').textContent=tog?'Together table':'Discard tray';
+  if(tog)renderNet();
+}
 function setView(v){
-  if(['play','drill','stats'].indexOf(v)<0)v='play';
+  if(v==='play')v=S.mode;
+  if(['solo','tog','drill','stats'].indexOf(v)<0)v='solo';
+  if(v==='solo'||v==='tog'){const why=switchMode(v);if(why){tabNote(why);return;}}
   if(v!=='drill')stopDrill();
-  cfg.view=v;statMore=false;confirmStats=false;
+  if(v==='stats'&&cfg.view!=='stats')statMode=S.mode;
+  cfg.view=v;statMore=false;confirmStats=false;confirmDrill=false;
   document.querySelectorAll('.tabs [data-view]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===v)));
-  $('#vPlay').hidden=v!=='play';$('#vDrill').hidden=v!=='drill';$('#vStats').hidden=v!=='stats';
+  const play=v==='solo'||v==='tog';
+  $('#vPlay').hidden=!play;$('#vDrill').hidden=v!=='drill';$('#vStats').hidden=v!=='stats';
+  if(play)render();
   if(v==='drill')renderDrill();
   if(v==='stats')renderStatsView();
   save();
 }
-document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{setView(b.dataset.view);window.scrollTo(0,0);}));
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{const was=cfg.view;setView(b.dataset.view);if(cfg.view!==was)window.scrollTo(0,0);}));
 function render(){
   const view=(Net.role==='host'&&Net.peer)?JSON.stringify(buildView()):null;
-  $('#btnNet').classList.toggle('live',!!Net.peer);
+  renderMode();
   $('#bank').textContent=fmt(S.bankroll);
   $('#btnSettings').disabled=!(S.phase==='bet'&&!busy);
   $('#trayFill').style.width=(S.total?S.pos/S.total*100:0)+'%';
@@ -1426,10 +1544,11 @@ function recordRound(w,info){
     if(net>0)o.wins++;else if(net<0)o.losses++;else o.pushes++;
     o.best=Math.max(o.best,net);o.worst=Math.min(o.worst,net);
   });
-  const e={n:stats.hands,t:Date.now(),net:net,w:r2(w.wag||0),h:w.hn||1,bj:w.bj||0,bu:w.bu||0,db:w.db||0,ip:w.ip?1:0,
+  const e={n:ST[S.mode].life.hands,t:Date.now(),net:net,w:r2(w.wag||0),h:w.hn||1,bj:w.bj||0,bu:w.bu||0,db:w.db||0,ip:w.ip?1:0,
     up:info.up||'',dv:info.dv,rc:c.rc,tc:c.tc,sys:cfg.system,d:S.rd.dec,ok:S.rd.ok,b:S.bankroll};
-  stats.hist.push(e);if(stats.hist.length>HIST_MAX)stats.hist.splice(0,stats.hist.length-HIST_MAX);
-  sessHist.push(e);
+  const m=ST[S.mode];
+  m.life.hist.push(e);if(m.life.hist.length>HIST_MAX)m.life.hist.splice(0,m.life.hist.length-HIST_MAX);
+  m.sh.push(e);
 }
 
 /* ---------- count quiz ---------- */
@@ -1492,9 +1611,47 @@ function seg(key,opts){
   return'<div class="seg" role="group">'+opts.map(o=>'<button type="button" aria-pressed="'+(cfg[key]===o[1])+'" data-set="'+key+'" data-val="'+esc(JSON.stringify(o[1]))+'">'+o[0]+'</button>').join('')+'</div>';
 }
 const fld=(label,body,hint)=>'<div class="field"><label>'+label+'</label>'+body+(hint?'<p class="hint">'+hint+'</p>':'')+'</div>';
+/* ---------- saved setups ---------- */
+let presetDraft='',presetDel=-1,presetNote='',presetBad=false;
+/* What this phone's settings are right now. At someone else's table, your own rules wait in Net.ownRules. */
+const effCfg=()=>Net.role==='guest'&&Net.ownRules?Object.assign({},cfg,Net.ownRules):cfg;
+const presetOn=p=>{const c=effCfg();return PKEYS.every(k=>c[k]===p.cfg[k]);};
+function presetHTML(){
+  const list=presets.map((p,i)=>{const on=presetOn(p);
+    return'<div class="preset"><button class="btn'+(on?' primary':'')+'" data-pre="apply" data-i="'+i+'" aria-pressed="'+on+'">'+esc(p.name)+(on?' · in use':'')+'</button>'
+      +'<button class="btn small" data-pre="update" data-i="'+i+'" '+(on?'disabled':'')+' aria-label="Save current settings over '+esc(p.name)+'">Save over</button>'
+      +'<button class="btn small ghost" data-pre="del" data-i="'+i+'" aria-label="Delete '+esc(p.name)+'">'+(presetDel===i?'Sure?':'Delete')+'</button></div>';}).join('');
+  return(list?'<div class="presets">'+list+'</div>':'<p class="hint">No saved setups yet.</p>')
+    +'<div class="joinrow presetrow"><input id="presetName" value="'+esc(presetDraft)+'" maxlength="24" placeholder="Name, like 6 deck Vegas" aria-label="Name for this setup" autocomplete="off"><button class="btn" data-pre="save">Save</button></div>'
+    +(presetNote?'<p class="coach '+(presetBad?'bad':'good')+'">'+esc(presetNote)+'</p>':'')
+    +'<p class="hint">Saves your shoe, table, rules, counting, coaching and pace settings under a name. Tap a name to switch to it. Your last settings are always kept when you close the app.</p>';
+}
+function savePreset(name,i){
+  name=String(name||'').trim().slice(0,24);presetBad=true;
+  if(!name){presetNote='Type a name first.';return;}
+  const p={name:name,cfg:pickKeys(effCfg(),PKEYS)};
+  if(i===undefined)i=presets.findIndex(x=>x.name===name);
+  if(i>=0)presets[i]=Object.assign(p,{name:presets[i].name});else if(presets.length<PRESET_MAX)presets.push(p);
+  else{presetNote='You can keep up to '+PRESET_MAX+' setups. Delete one first.';return;}
+  presetBad=false;presetNote='Saved “'+p.name+'”.';presetDraft='';save();
+}
+function applyPreset(p){
+  const before=pickKeys(cfg,PKEYS),guest=Net.role==='guest';
+  PKEYS.forEach(k=>{
+    const v=p.cfg[k];if(typeof v!==typeof DEFAULTS[k]||(typeof v==='number'&&!Number.isFinite(v)))return;
+    if(guest&&RULE_KEYS.indexOf(k)>=0){Net.ownRules[k]=v;return;}
+    cfg[k]=v;
+  });
+  const ch=k=>before[k]!==cfg[k];
+  if(ch('system')&&Net.role)recomputeRC();
+  else if(!guest&&(ch('decks')||ch('pen')||ch('system'))){newShoe();S.msg='New shoe shuffled.';S.msgCls='';}
+  if(!guest&&(ch('bots')||ch('startSeat'))){setupTable();S.msg='Seats reset.';S.msgCls='';}
+  presetBad=false;presetNote='Using “'+p.name+'”.';save();
+}
 function renderSettings(){
   $('#settingsBody').innerHTML=
-   '<section class="grp"><h3>Shoe</h3>'
+   '<section class="grp"><h3>Saved setups</h3>'+presetHTML()+'</section>'
+   +'<section class="grp"><h3>Shoe</h3>'
    +fld('Decks in the shoe','<div class="stepper"><button class="btn" data-set="decks" data-val="'+(cfg.decks-1)+'" '+(cfg.decks<=1?'disabled':'')+' aria-label="Fewer decks">−</button><output>'+cfg.decks+'</output><button class="btn" data-set="decks" data-val="'+(cfg.decks+1)+'" '+(cfg.decks>=8?'disabled':'')+' aria-label="More decks">+</button></div>'
      +seg('decks',[['1',1],['2',2],['4',4],['6',6],['8',8]]),'Changing the shoe starts a fresh shuffle.')
    +'<div class="field"><label for="penRange">Penetration <output id="penOut">'+cfg.pen+'%</output></label><input id="penRange" type="range" min="50" max="90" step="5" value="'+cfg.pen+'"><p class="hint">Where the cut card sits. The shoe is reshuffled after the round that reaches it.</p></div></section>'
@@ -1514,8 +1671,9 @@ function renderSettings(){
    +fld('Quiz me on the running count',seg('quiz',[['Off','off'],['Every hand','1'],['Every 3','3'],['Random','rand']]))
    +fld('Also ask for the true count',seg('askTC',[['No',false],['Yes',true]]),'Balanced systems only.')
    +fld('Show the count while I play',seg('showRC',[['Hidden',false],['Shown',true]]))
-   +fld('Bet unit',seg('unit',[['$10',10],['$25',25],['$50',50]]),'Used for the bet suggestion. It shows when the count is shown, when hints are on, or when you tap the lightbulb.')+'</section>'
+   +fld('Bet unit',seg('unit',[['$10',10],['$25',25],['$50',50]]),'One unit for the bet size suggestion. Turn the suggestion on or off under Coaching.')+'</section>'
    +'<section class="grp"><h3>Coaching</h3>'
+   +fld('Bet size suggestion',seg('betHint',[['On',true],['Off',false]]),'Before each deal, shows how many bet units the count calls for, and why.')
    +fld('Always show the hint and why',seg('hint',[['Off',false],['On',true]]),'Off: tap the lightbulb during your turn when you want a hint.')
    +fld('Feedback after each decision',seg('feedback',[['On',true],['Off',false]]))
    +fld('Include Hi-Lo index plays',seg('indices',[['On',true],['Off',false]]),'Deviations from basic strategy at high or low counts.')+'</section>'
@@ -1537,16 +1695,29 @@ function setCfg(k,v){
 }
 $('#settingsBody').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b||b.disabled)return;
+  if(b.dataset.pre){
+    const a=b.dataset.pre,i=Number(b.dataset.i);
+    if(a!=='del')presetDel=-1;
+    presetNote='';
+    if(a==='save')savePreset(($('#presetName')||{}).value);
+    else if(a==='update')savePreset(presets[i].name,i);
+    else if(a==='apply')applyPreset(presets[i]);
+    else if(a==='del'){if(presetDel!==i){presetDel=i;}else{presets.splice(i,1);presetDel=-1;save();}}
+    renderSettings();render();return;
+  }
+  presetDel=-1;presetNote='';
   if(b.dataset.set){setCfg(b.dataset.set,JSON.parse(b.dataset.val));return;}
   if(b.dataset.act==='openGuide'){openGuide('count');return;}
   if(b.dataset.act==='newShoe'){newShoe();S.msg='New shoe shuffled.';S.msgCls='';S.coach='';save();renderSettings();render();return;}
   if(b.dataset.act==='reloadBank'){cmd({t:'reload'});}
 });
 $('#settingsBody').addEventListener('change',e=>{if(e.target.id==='selSys')setCfg('system',e.target.value);});
+$('#settingsBody').addEventListener('keydown',e=>{if(e.target.id==='presetName'&&e.key==='Enter'){savePreset(e.target.value);renderSettings();}});
 $('#settingsBody').addEventListener('input',e=>{
+  if(e.target.id==='presetName'){presetDraft=e.target.value;return;}
   if(e.target.id==='penRange'){cfg.pen=Number(e.target.value);$('#penOut').textContent=cfg.pen+'%';newShoe();S.msg='New shoe shuffled.';save();render();}
 });
-function openSettings(){if(S.phase!=='bet'||busy)return;renderSettings();$('#settingsOv').hidden=false;}
+function openSettings(){if(S.phase!=='bet'||busy)return;presetNote='';presetDel=-1;renderSettings();$('#settingsOv').hidden=false;}
 function closeSettings(){$('#settingsOv').hidden=true;render();if(cfg.view==='drill'&&DR.phase!=='run')renderDrill();}
 $('#settingsOv').addEventListener('click',e=>{
   if(e.target.id==='settingsOv'||(e.target.closest('[data-act="close"]')))closeSettings();
@@ -1663,7 +1834,6 @@ const CODE_CH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const Net={role:null,status:'idle',code:'',id:'',pc:null,ch:null,es:null,peer:false,ready:false,hello:false,pend:false,
   peerId:'',err:'',note:'',draft:'',timer:0,hiSent:false,ownRules:null,lastSettled:-1};
 const makeCode=n=>{let c='';for(let i=0;i<n;i++)c+=CODE_CH[rnd(CODE_CH.length)];return c;};
-const pickKeys=(o,keys)=>{const r={};keys.forEach(k=>{r[k]=o[k];});return r;};
 const CMD_KINDS=['hit','stand','double','split','surrender'];
 
 function sigPost(m){
@@ -1940,17 +2110,16 @@ function renderNet(){
   const st=Net.status,role=Net.role,err=Net.err?'<p class="coach bad">'+esc(Net.err)+'</p>':'',note=Net.note?'<p class="coach good">'+esc(Net.note)+'</p>':'';
   let h='';
   if(!role){
-    h='<p class="sub">Play at the same table from two phones. One of you hosts and the other joins with a code. The cards, bets and count are shared, and the host’s phone deals. You each keep your own bankroll, stats and counting settings on your own phone.</p>'
+    h='<h3 class="eyebrow">Play together</h3><p class="sub">Play at the same table from two phones. One of you hosts and the other joins with a code. The cards, bets and count are shared, and the host’s phone deals.</p>'
+      +'<p class="sub">This is a separate table from your solo game, with its own bankroll ('+fmt(S.bankroll)+') and its own stats, so the two never mix.</p>'
       +'<button class="btn primary big" data-n="host">Host a table</button>'
       +'<div class="field"><label for="joinCode">Join with a code</label><div class="joinrow"><input id="joinCode" value="'+esc(Net.draft)+'" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="CODE"><button class="btn" data-n="join">Join</button></div></div>'
       +err+'<p class="hint">Both phones need an internet connection. Wi-Fi works best, because some mobile networks block direct connections between phones.</p>';
   }else if(role==='host'){
     if(st==='connected'){
-      h='<p class="coach good">Connected. The other player is at your table.</p>'
-        +'<p class="sub">Their seats are outlined in blue. Each of you taps a seat, sets a bet and taps Deal. Your phone runs the shoe, so keep this page open.</p>'
-        +'<button class="btn big" data-n="stop">Stop hosting</button>';
+      h='<div class="netbar"><p class="coach good">Hosting table '+esc(Net.code)+'. The other player is in, and their seats are outlined in blue. Keep this page open.</p><button class="btn small" data-n="stop">Stop hosting</button></div>';
     }else{
-      h='<p class="sub">Tell them this code, or send the invite link. They tap <b>Join</b> and type it in.</p>'
+      h='<h3 class="eyebrow">Hosting</h3><p class="sub">Tell them this code, or send the invite link. They tap <b>Join</b> and type it in.</p>'
         +'<div class="codebox" aria-label="Table code">'+esc(Net.code)+'</div>'
         +'<div class="row"><button class="btn" data-n="share">Send invite</button><button class="btn" data-n="copy">Copy code</button></div>'
         +note+err
@@ -1960,31 +2129,26 @@ function renderNet(){
     }
   }else{
     if(st==='connected'){
-      h='<p class="coach good">Connected to table '+esc(Net.code)+'.</p>'
-        +'<p class="sub">Tap a seat to sit, set your bet and tap Deal. The host’s rules are used for this table. Your bankroll and stats stay on your phone.</p>'
-        +'<button class="btn big" data-n="leave">Leave table</button>';
+      h='<div class="netbar"><p class="coach good">At table '+esc(Net.code)+'. The host’s rules apply. Tap a seat, bet and tap Deal.</p><button class="btn small" data-n="leave">Leave</button></div>';
     }else if(st==='dropped'){
       h='<p class="coach bad">'+esc(Net.err||'Disconnected.')+'</p>'
-        +'<div class="row"><button class="btn primary" data-n="retry">Rejoin</button><button class="btn" data-n="leave">Play on my own</button></div>';
+        +'<div class="row"><button class="btn primary" data-n="retry">Rejoin</button><button class="btn" data-n="leave">Leave</button></div>';
     }else{
       h='<p class="note">Connecting to table '+esc(Net.code)+'…</p><button class="btn big" data-n="cancel">Cancel</button>';
     }
   }
   el.innerHTML=h;
 }
-function openNet(){renderNet();$('#netOv').hidden=false;}
-function closeNet(){$('#netOv').hidden=true;}
-$('#btnNet').addEventListener('click',openNet);
-$('#netOv').addEventListener('input',function(e){if(e.target.id==='joinCode'){e.target.value=e.target.value.toUpperCase();Net.draft=e.target.value;}});
-$('#netOv').addEventListener('click',function(e){
-  if(e.target.id==='netOv'||e.target.closest('[data-n="close"]')){closeNet();return;}
+$('#togPanel').addEventListener('input',function(e){if(e.target.id==='joinCode'){e.target.value=e.target.value.toUpperCase();Net.draft=e.target.value;}});
+$('#togPanel').addEventListener('keydown',function(e){if(e.target.id==='joinCode'&&e.key==='Enter')joinStart(e.target.value);});
+$('#togPanel').addEventListener('click',function(e){
   const b=e.target.closest('[data-n]');if(!b)return;
   const a=b.dataset.n;
   if(a==='host')hostStart();
   else if(a==='join'){const i=$('#joinCode');joinStart(i?i.value:Net.draft);}
   else if(a==='stop')stopHosting();
   else if(a==='leave')leaveTable();
-  else if(a==='cancel'){teardownAll();Net.role=null;Net.status='idle';Net.err='';renderNet();}
+  else if(a==='cancel'){teardownAll();Net.role=null;Net.status='idle';Net.err='';renderNet();render();}
   else if(a==='retry')joinStart(Net.code);
   else if(a==='copy'||a==='share'){
     const url=inviteUrl(),text='Join my blackjack table. Code '+Net.code;
@@ -2000,7 +2164,7 @@ function netInit(){
   if(h){
     Net.draft=h[1].toUpperCase();
     try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
-    openNet();
+    setView('tog');
   }
 }
 
@@ -2040,7 +2204,6 @@ $('#controls').addEventListener('click',e=>{
   else cmd({t:'act',k:a});
 });
 document.addEventListener('keydown',e=>{
-  if(!$('#netOv').hidden){if(e.key==='Escape')closeNet();return;}
   if(!$('#guideOv').hidden){if(e.key==='Escape')closeGuide();return;}
   if(!$('#settingsOv').hidden||!$('#quizOv').hidden){if(e.key==='Escape'){if(!$('#settingsOv').hidden)closeSettings();}return;}
   const t=e.target&&e.target.tagName;if(e.metaKey||e.ctrlKey||e.altKey)return;
@@ -2051,13 +2214,14 @@ document.addEventListener('keydown',e=>{
     else if(DR.phase==='answer'&&e.key==='Enter')drillCheck();
     return;
   }
-  if(cfg.view!=='play')return;
+  if(cfg.view!=='solo'&&cfg.view!=='tog')return;
   if(S.phase==='bet'&&e.key==='Enter'&&t!=='BUTTON')cmd({t:'deal'});
   else if(S.phase==='insurance'){if(k==='y')cmd({t:'ins',take:true});else if(k==='n')cmd({t:'ins',take:false});}
   else if(S.phase==='player'){const m={h:'hit',s:'stand',d:'double',p:'split',r:'surrender'};if(m[k])cmd({t:'act',k:m[k]});else if(k==='i'&&!busy){S.hintOpen=!S.hintOpen;render();}}
 });
 
-if(!restoreTable()){newShoe();setupTable();}
+S.bankroll=slots[S.mode].bank;
+if(!restoreTable(slots[S.mode].table)){newShoe();setupTable();}
 render();
 setView(cfg.view);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){save();if(DR.phase==='run'&&cfg.drillPace){stopDrill();renderDrill();}}});

@@ -45,4 +45,5 @@ Single-file app: `index.html` (CSS, markup, one IIFE script). Keep it dependency
 - Campaign: `LEVELS` are fixed drills with a benchmark. Passing the current level `PASS_NEED` times in a row unlocks the next. Progress is `dstats.camp` (`lvl`, `prog`), kept when drill stats are reset. Replaying a cleared level is practice and does not change progress.
 - Saved setups (`presets`) are named copies of the `PKEYS` settings. At someone else's table, applying one puts rule settings in `Net.ownRules` only.
 - The bet size suggestion is the `betHint` setting, not a lightbulb.
+- The table count quiz never pops up over a finished round. `maybeQuiz()` only marks it due (`quizDue`), and `tapDeal()` opens it when the player taps Deal. Answering or skipping then deals (`quiz.thenDeal`).
 - Counts are typed on an in-app number pad (`numPadHTML()`, `padKey()`), never a text input, so the phone keyboard never opens. Used by the table count quiz (running and true count, tap a box to pick which) and the running count drill answer. Hardware keys work too: digits, minus, Backspace, Enter.

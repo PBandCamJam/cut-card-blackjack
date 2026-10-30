@@ -1771,7 +1771,7 @@ function settleRound(){
   S.roundNet=W;S.settled++;
   fitBets();
   save();render();
-  setTimeout(maybeQuiz,900);
+  maybeQuiz();
 }
 
 /* The count at the start of a round, from the cards seen before the deal, with this phone's own system. */
@@ -1850,15 +1850,21 @@ function numPadHTML(){return'<div class="numpad">'+PAD_KEYS.map(k=>'<button type
 /* Typing on a hardware keyboard: digits, minus, backspace. Returns the key name for padKey, or ''. */
 const padFromKey=e=>/^[0-9]$/.test(e.key)?e.key:(e.key==='-'||e.key==='+')?'±':e.key==='Backspace'?'⌫':'';
 let quiz={rc:0,tc:0,done:false,res:null};
+/* After a round, decide whether a count check is due. It waits until you tap Deal, so you can look over the whole table first. */
+let quizDue=false;
 function maybeQuiz(){
-  if(cfg.quiz==='off'||S.phase!=='bet'||busy)return;
+  if(cfg.quiz==='off')return;
   S.sinceQuiz++;
-  const due=cfg.quiz==='1'?true:cfg.quiz==='3'?S.sinceQuiz>=3:rnd(100)<34;
-  if(due)openQuiz();
+  if(cfg.quiz==='1'?true:cfg.quiz==='3'?S.sinceQuiz>=3:rnd(100)<34)quizDue=true;
 }
-function openQuiz(){
+/* Deal, with the count check first when one is due. Answering or skipping it then deals. */
+function tapDeal(){
+  if(quizDue&&cfg.quiz!=='off'&&S.phase==='bet'&&!busy&&betCheck().ok){quizDue=false;openQuiz(true);return;}
+  cmd({t:'deal'});
+}
+function openQuiz(thenDeal){
   if(busy)return;
-  S.sinceQuiz=0;quiz={rc:0,tc:0,rcS:'',tcS:'',f:'rc',done:false,res:null,actual:S.rc,dl:decksHalf()};
+  S.sinceQuiz=0;quiz={rc:0,tc:0,rcS:'',tcS:'',f:'rc',done:false,res:null,actual:S.rc,dl:decksHalf(),thenDeal:!!thenDeal};
   renderQuiz();$('#quizOv').hidden=false;
 }
 function renderQuiz(){
@@ -1868,14 +1874,14 @@ function renderQuiz(){
       +'<div class="numdisps">'+numDisp('rc','Running count',quiz.rcS,quiz.f==='rc')+(askTC?numDisp('tc','True count',quiz.tcS,quiz.f==='tc'):'')+'</div>'
       +(askTC?'<p class="hint">Tap a box to choose which one you are typing. True count is a whole number, and within 1 counts as right.</p>':'')
       +numPadHTML()
-      +'<div class="row"><button class="btn ghost" data-q="skip">Skip</button><button class="btn primary" data-q="check">Check</button></div>';
+      +'<div class="row"><button class="btn ghost" data-q="skip">'+(quiz.thenDeal?'Skip and deal':'Skip')+'</button><button class="btn primary" data-q="check">Check</button></div>';
   }else{
     const r=quiz.res;
     h='<h2 class="'+(r.ok?'ok':'bad')+'">'+(r.ok?'Right on.':'Off by '+Math.abs(r.diff)+'.')+'</h2>'
       +'<p>You said '+sgn(quiz.rc)+'. The running count is '+sgn(r.actual)+'.</p>'
       +(r.tcShown?'<p>True count is about '+sgn1(r.tcExp)+'. You said '+sgn(quiz.tc)+(r.tcOk?', close enough.':'.')+'</p>':'')
       +'<p class="sub">Streak '+stats.cStreak+', best '+stats.cBest+'. Accuracy '+Math.round(stats.cRight/stats.cAsked*100)+'% over '+stats.cAsked+' checks.</p>'
-      +'<button class="btn primary big" data-q="close">Continue</button>';
+      +'<button class="btn primary big" data-q="close">'+(quiz.thenDeal?'Deal next hand':'Continue')+'</button>';
   }
   $('#quizBody').innerHTML=h;
 }
@@ -1894,7 +1900,7 @@ function checkQuiz(){
   }
   quiz.done=true;quiz.res=res;save();renderQuiz();renderMini();
 }
-function closeQuiz(){$('#quizOv').hidden=true;render();}
+function closeQuiz(){$('#quizOv').hidden=true;render();if(quiz.thenDeal){quiz.thenDeal=false;cmd({t:'deal'});}}
 $('#quizOv').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.key){quizKey(b.dataset.key);return;}
@@ -1983,7 +1989,7 @@ function renderSettings(){
    +fld('Resplit aces',seg('resplitAces',[['No',false],['Yes',true]]),'Split aces get one card each. Up to 4 hands.')+'</div></details>'
    +grpOpen('Counting')
    +fld('System','<select id="selSys">'+Object.keys(SYSTEMS).map(k=>'<option value="'+k+'"'+(cfg.system===k?' selected':'')+'>'+SYSTEMS[k].name+(k==='hilo'?' (start here)':'')+'</option>').join('')+'</select><button class="btn small" data-act="openGuide">How counting works</button>',SYS_DESC[cfg.system]+(cfg.system==='hilo'?'':' Index plays and bet suggestions are built for Hi-Lo.'))
-   +fld('Quiz me on the running count',seg('quiz',[['Off','off'],['Every hand','1'],['Every 3','3'],['Random','rand']]))
+   +fld('Quiz me on the running count',seg('quiz',[['Off','off'],['Every hand','1'],['Every 3','3'],['Random','rand']]),'The check comes up when you tap Deal, so you can look over the whole table first.')
    +fld('Also ask for the true count',seg('askTC',[['No',false],['Yes',true]]),'Balanced systems only.')
    +fld('Show the count while I play',seg('showRC',[['Hidden',false],['Shown',true]]))
    +fld('Bet unit',seg('unit',[['$10',10],['$25',25],['$50',50]]),'One unit for the bet size suggestion. Turn the suggestion on or off under Coaching.')+'</div></details>'
@@ -2359,7 +2365,7 @@ function applyView(v){
       Net.lastSettled=v.settled;
       const r=v.rn&&v.rn.g;
       if(r&&r.p)recordRound(r,v.rn);
-      setTimeout(maybeQuiz,900);
+      maybeQuiz();
     }
     render();
     renderNet();
@@ -2514,7 +2520,7 @@ $('#controls').addEventListener('click',e=>{
   else if(a==='clear')cmd({t:'bet',i:S.sel,v:0});
   else if(a==='useSuggest')cmd({t:'bet',i:S.sel,v:Number(b.dataset.v)});
   else if(a==='leave')cmd({t:'leave',i:S.sel});
-  else if(a==='deal')cmd({t:'deal'});
+  else if(a==='deal')tapDeal();
   else if(a==='reload')cmd({t:'reload'});
   else if(a==='ins-yes')cmd({t:'ins',take:true});
   else if(a==='ins-no')cmd({t:'ins',take:false});
@@ -2542,7 +2548,7 @@ document.addEventListener('keydown',e=>{
     return;
   }
   if(cfg.view!=='solo'&&cfg.view!=='tog')return;
-  if(S.phase==='bet'&&e.key==='Enter'&&t!=='BUTTON')cmd({t:'deal'});
+  if(S.phase==='bet'&&e.key==='Enter'&&t!=='BUTTON')tapDeal();
   else if(S.phase==='insurance'){if(k==='y')cmd({t:'ins',take:true});else if(k==='n')cmd({t:'ins',take:false});}
   else if(S.phase==='player'){const m={h:'hit',s:'stand',d:'double',p:'split',r:'surrender'};if(m[k])cmd({t:'act',k:m[k]});else if(k==='i'&&!busy){S.hintOpen=!S.hintOpen;render();}}
 });

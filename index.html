@@ -33,7 +33,9 @@
   --anim:320ms;
   color-scheme:dark;
 }
-html{background:var(--rail)}
+/* No double-tap zoom, so fast taps on chips and buttons stay put. Pinch zoom still works. */
+html{background:var(--rail);touch-action:manipulation}
+button,summary,.seat,input,select{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 body{background:var(--rail);color:var(--ivory);font:15px/1.45 var(--font-body);padding-top:max(10px,env(safe-area-inset-top,0px));padding-bottom:calc(84px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 *{box-sizing:border-box}
 .app{max-width:760px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}

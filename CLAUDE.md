@@ -1,6 +1,6 @@
 # Cut Card Blackjack: notes for Claude Code
 
-Single-file app: `index.html` (CSS, markup, one IIFE script). Keep it dependency-free and dark-felt themed (single visual world, tokens at the top of the `<style>` block). Fonts come from Google Fonts only.
+Single-file app: `index.html` (CSS, markup, one IIFE script). Keep it dependency-free and dark-felt themed (single visual world, tokens at the top of the `<style>` block). Fonts come from Google Fonts only. No script libraries. Play together uses two network services but no code from them: ntfy.sh (a public relay, used only to swap WebRTC connection details) and Google STUN servers.
 
 ## Conventions
 - Avoid em dashes in UI copy and docs.
@@ -15,5 +15,17 @@ Single-file app: `index.html` (CSS, markup, one IIFE script). Keep it dependency
 - Unbalanced systems (KO) start at `4 - 4 * decks`.
 - True count uses decks remaining rounded to the nearest half deck.
 
-## Next task
-Implement the 5-seat table described in `docs/ROADMAP.md`.
+## State
+- Saved between hands only (see `save()`, `snapshot()`, `restoreTable()`). Leaving mid-hand restores the table to just before the deal.
+- Seat 1 is first base and is dealt first. It is drawn on the right of the screen, so play runs clockwise.
+- Computer players are unnamed. Any seat the player taps is theirs.
+- Hints explain why, not just what: `explain()`, `indexWhy()` and `recIns()` return a `reason`. The guide chart is generated from `basic()` via `chartCode()`, so it always follows the current rules. Keep both in sync when changing strategy.
+- `S.seenN` counts every shown card per rank since the shuffle. `checkCount()` asserts the running count equals base plus tags over `seenN`, so the breakdown and the count cannot drift apart. Keep `seenN` updated only through `seen()`.
+
+## Play together (two phones)
+- The host phone runs everything (shoe, dealer, computer players, both bankrolls). The guest phone mirrors a `buildView()` snapshot sent after every `render()` and applies it with `applyView()`. The guest never receives the shoe or the hole card, only `pos`, shoe length and `seenN`.
+- `seat.owner` is 'h' or 'g'. `human(s)` is any person, `mine(s)` is a seat of the person holding this phone (`S.me`). Game logic that waits for input uses `human`, UI uses `mine`. Computer seats have unlimited funds in `bankOf()`.
+- Every button goes through `cmd()` and then `runCmd(m, who)`, which validates the seat owner and phase. The host trusts nothing from the guest beyond that.
+- Each phone keeps its own bankroll, stats, counting system and coaching settings. The guest takes the host's rules (`RULE_KEYS`) in memory only, and `save()` writes the guest's own rules back. The guest's running count is recomputed from `seenN` with the guest's own system.
+- If the other person drops mid-hand, `dropGuestSeats()` hands their seats to the computer ('book' style, `leaving`) so the hand can finish, and they are cleared at settlement.
+- Test hook: `window.__CC_SIG` can replace the ntfy.sh relay.

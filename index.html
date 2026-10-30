@@ -1,5 +1,14 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
 <title>Cut Card Blackjack</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15110d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cut Card">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e3b2c'/%3E%3Crect x='20' y='10' width='24' height='44' rx='4' fill='%23f4efe1'/%3E%3Ctext x='32' y='40' font-size='22' text-anchor='middle' fill='%23a3241d'%3E%E2%99%A5%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -16,6 +25,10 @@
   --font-body:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
   --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   --cw:clamp(50px,15.5vw,68px);
+  --sw:clamp(34px,9.2vw,52px);
+  --shade:rgba(0,0,0,.22); --glow:rgba(203,167,80,.32); --seat-line:rgba(244,239,225,.22);
+  --friend:#8fb8d6;
+  --act-hit:#2d6a4a; --act-stand:#8a3a30; --act-double:#7a6428; --act-split:#4a4f8f; --act-surr:#5a5a5a;
   --anim:320ms;
   color-scheme:dark;
 }
@@ -27,14 +40,16 @@ body{background:var(--rail);color:var(--ivory);font:15px/1.45 var(--font-body);p
 button{font-family:inherit}
 :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 
-.top{display:flex;align-items:center;gap:12px}
+.top{display:flex;align-items:center;gap:8px}
 .brand{flex:1;min-width:0}
-h1{margin:0;font:700 28px/1 var(--font-display);letter-spacing:.02em}
+h1{margin:0;font:700 28px/1 var(--font-display);letter-spacing:.02em;white-space:nowrap}
 .bank{text-align:right;display:grid}
 .bank b{font:600 20px var(--font-mono);font-variant-numeric:tabular-nums}
 .icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(203,167,80,.35);background:var(--rail-3);color:var(--ivory);display:grid;place-items:center;cursor:pointer}
 .icon-btn:disabled{opacity:.4}
 
+@media (max-width:420px){h1{font-size:24px}.top{gap:6px}.top .icon-btn{width:40px;height:40px}.bank b{font-size:18px}}
+@media (max-width:360px){h1{font-size:21px}.bank b{font-size:16px}.top .icon-btn{width:38px;height:38px}}
 .tray{position:relative;height:12px;border-radius:6px;background:var(--rail-3);overflow:hidden}
 .tray-fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--brass-dim),var(--brass));width:0}
 .tray-cut{position:absolute;top:-2px;bottom:-2px;width:4px;background:var(--lose);left:75%}
@@ -64,7 +79,39 @@ h1{margin:0;font:700 28px/1 var(--font-display);letter-spacing:.02em}
 @keyframes dealIn{from{transform:translate(28px,-40px) rotate(8deg);opacity:0}to{transform:none;opacity:1}}
 @keyframes flip{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
-.hands{display:flex;flex-wrap:wrap;gap:12px 14px;justify-content:center}
+/* Seats: five columns on a smile-shaped arc. Seat 1 (first base) is on the dealer's left, which is the right side of the screen, and play runs clockwise. Seat cards cascade downward to stay narrow. */
+.seats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;align-items:start;direction:rtl}
+.seat{direction:ltr;--cw:var(--sw);display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;padding:4px 2px 6px;border-radius:12px;border:1.5px solid transparent;cursor:pointer}
+.seat:nth-child(2),.seat:nth-child(4){margin-top:14px}
+.seat:nth-child(3){margin-top:22px}
+.seat.sel{border:1.5px dashed var(--brass-dim)}
+.seat.turn{border:1.5px solid var(--brass);background:var(--shade);box-shadow:0 0 16px var(--glow)}
+.seat-hands{display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-end;gap:4px;min-height:calc(var(--cw)*1.86);max-width:100%}
+.seat .hand{padding:3px;gap:3px;border-radius:8px}
+.seat .cards{flex-direction:column;align-items:center;min-height:0}
+.seat .card+.card{margin-left:0;margin-top:calc(var(--cw)*-1.02)}
+.seat .card .cr{left:4px;top:3px;font-size:calc(var(--cw)*.32)}
+.seat .card .cs{left:auto;right:4px;top:3px;font-size:calc(var(--cw)*.28)}
+.seat .card .cc{font-size:calc(var(--cw)*.5)}
+.seat .pill{font-size:11px;padding:2px 6px}
+.seat .badge{font-size:11px;line-height:1.2;text-align:center}
+.seat .meta{gap:3px}
+.chipspot{width:min(44px,100%);aspect-ratio:1;border-radius:50%;border:2px dashed var(--brass-dim);background:transparent;color:var(--brass);font:600 11px var(--font-mono);display:grid;place-items:center;padding:0;cursor:pointer;font-variant-numeric:tabular-nums}
+.seat.player .chipspot{border-style:solid;border-color:var(--brass);background:var(--shade)}
+.seat.bot .chipspot{border-style:solid;border-color:var(--seat-line);color:var(--ivory-dim)}
+.seat.other .chipspot{border-style:solid;border-color:var(--friend);color:var(--friend);background:var(--shade)}
+.seat.other .seat-name{color:var(--friend)}
+.icon-btn.live{position:relative}
+.icon-btn.live::after{content:"";position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:var(--win);box-shadow:0 0 0 2px var(--rail-3)}
+#netOv{z-index:55}
+.codebox{font:700 40px var(--font-mono);letter-spacing:.2em;text-align:center;padding:14px 8px 14px 18px;border-radius:12px;background:rgba(0,0,0,.3);color:var(--brass);user-select:all}
+.joinrow{display:flex;gap:8px}
+.joinrow input{flex:1;min-width:0;min-height:48px;text-align:center;font:600 22px var(--font-mono);letter-spacing:.2em;text-transform:uppercase;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--ivory)}
+.seat-name{font:600 13px/1.2 var(--font-mono);text-align:center;max-width:100%;overflow-wrap:anywhere}
+.seat-name small{display:block;color:var(--ivory-dim);font-weight:500;font-size:10px}
+.seat.mine .seat-name{color:var(--brass)}
+.seat-info{display:grid;gap:2px}
+.seat-info b{font:700 20px var(--font-display)}
 .hand{display:grid;gap:6px;justify-items:center;padding:8px 10px;border-radius:12px;border:1.5px solid transparent}
 .hand.active{border-color:var(--brass);background:rgba(0,0,0,.2)}
 .meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center}
@@ -72,7 +119,6 @@ h1{margin:0;font:700 28px/1 var(--font-display);letter-spacing:.02em}
 .pill.bet{box-shadow:inset 0 0 0 1px var(--brass-dim);color:var(--brass)}
 .badge{font:600 12px var(--font-body)}
 .badge.win{color:var(--win)}.badge.lose{color:var(--lose)}.badge.push{color:var(--push)}
-.spot{width:84px;height:84px;border-radius:50%;border:2px dashed var(--brass-dim);display:grid;place-items:center;font:600 16px var(--font-mono);color:var(--brass);margin:8px auto}
 
 .panel{background:var(--rail-2);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px;display:grid;gap:10px}
 .note{margin:0;color:var(--ivory-dim)}
@@ -100,6 +146,39 @@ kbd{font:500 11px var(--font-mono);color:var(--ivory-dim);border:1px solid rgba(
 .coach{margin:0;font-size:13px}
 .coach.good{color:var(--win)}.coach.bad{color:var(--lose)}.coach.hint{color:var(--brass)}
 
+.panel-head{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.panel-head .note{flex:1;min-width:0}
+.icon-btn.sm{width:40px;height:40px;border-radius:10px;flex:none}
+.icon-btn[aria-pressed=true]{background:var(--brass);color:var(--ink);border-color:var(--brass)}
+.hint-card{display:grid;gap:4px;padding:10px 12px;border:1px dashed var(--brass-dim);border-radius:10px;background:var(--shade);font-size:13px}
+.hint-card b{color:var(--brass)}
+.hint-card p{margin:0;color:var(--ivory-dim)}
+.acc{border-top:1px solid rgba(255,255,255,.07)}
+.acc-btn{width:100%;min-height:44px;display:flex;justify-content:space-between;align-items:center;gap:8px;background:transparent;border:0;color:var(--ivory);font:600 14px var(--font-body);cursor:pointer;padding:0;text-align:left}
+.acc-body{display:grid;gap:10px;padding:2px 0 14px}
+.acc-body h3{margin:6px 0 0;font:600 12px var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--brass)}
+.acc-body p{margin:0}
+.rkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px}
+.rk{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6px;padding:7px 8px;border-radius:8px;background:var(--shade);overflow:hidden;isolation:isolate;font:600 12px var(--font-mono)}
+.rk::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--p);background:var(--fill);z-index:-1}
+.rk.plus{--fill:color-mix(in srgb,var(--act-hit) 70%,transparent)}
+.rk.minus{--fill:color-mix(in srgb,var(--act-stand) 70%,transparent)}
+.rk.zero{--fill:color-mix(in srgb,var(--act-surr) 70%,transparent)}
+.rk b{font-size:13px}
+.rk span{color:var(--ivory);font-size:11px;text-align:right}
+.rk i{font-style:normal;font-size:11px;color:var(--ivory-dim)}
+.stack{display:flex;height:24px;border-radius:6px;overflow:hidden;font:600 11px var(--font-mono)}
+.stack span{display:grid;place-items:center;min-width:0;overflow:hidden;white-space:nowrap}
+.stack .hi,.stack-key .hi{background:var(--act-hit)}
+.stack .mid,.stack-key .mid{background:var(--act-surr)}
+.stack .lo,.stack-key .lo{background:var(--act-stand)}
+.stack-key{display:grid;gap:4px;font-size:12px;color:var(--ivory-dim)}
+.stack-key span{display:flex;align-items:center;gap:8px}
+.stack-key i{width:12px;height:12px;border-radius:3px;flex:none}
+.meter{position:relative;height:14px;border-radius:7px;background:linear-gradient(90deg,var(--act-stand) 0 40%,var(--act-hit) 40% 100%)}
+.meter i{position:absolute;top:-3px;width:4px;height:20px;border-radius:2px;background:var(--ivory);left:calc(var(--m) - 2px)}
+.meter-key{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--ivory-dim)}
+.meter-key b{font:600 13px var(--font-mono);color:var(--ivory);text-align:center}
 .count-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .count-btns{display:flex;gap:8px;flex-wrap:wrap}
 .readout{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -115,6 +194,7 @@ kbd{font:500 11px var(--font-mono);color:var(--ivory-dim);border:1px solid rgba(
 .foot{margin:0;font-size:12px;color:var(--ivory-dim)}
 
 .overlay{position:fixed;inset:0;background:rgba(5,4,3,.72);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.overlay[hidden]{display:none}
 .sheet{width:min(560px,100%);max-height:92%;overflow:auto;background:var(--rail-2);border-radius:18px 18px 0 0;display:grid;gap:14px;padding-top:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .sheet h2{margin:0;font:700 22px var(--font-display)}
 .sheet h3{margin:0;font:600 12px var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--brass)}
@@ -133,6 +213,30 @@ kbd{font:500 11px var(--font-mono);color:var(--ivory-dim);border:1px solid rgba(
 select{min-height:44px;background:var(--rail-3);color:var(--ivory);border:1px solid rgba(203,167,80,.35);border-radius:10px;padding:0 10px;font:600 14px var(--font-body)}
 input[type=range]{accent-color:var(--brass);width:100%}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sheet p{margin:0}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#guideOv{z-index:60}
+.gtabs{position:sticky;top:0;z-index:2;background:var(--rail-2);padding:4px 0 8px}
+.chart-wrap{overflow-x:auto}
+.chart{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fixed;font:600 12px var(--font-mono);text-align:center}
+.chart th{color:var(--ivory-dim);font-weight:600;padding:3px 0}
+.chart th.rl{text-align:left;width:56px;white-space:nowrap}
+.chart td{border-radius:4px;padding:5px 0;color:var(--ivory)}
+.chart td.plain{background:rgba(0,0,0,.3)}
+.chart td.hot{background:var(--act-hit)}.chart td.cold{background:var(--act-stand)}
+.chart.plainchart{table-layout:auto}
+.plainchart th{text-align:left;padding:3px 8px}
+.chart.plainchart th.rl{width:auto}
+.plainchart td{text-align:left;padding:6px 8px;background:rgba(0,0,0,.3);font:500 13px var(--font-body)}
+.g-H{background:var(--act-hit)}.g-S{background:var(--act-stand)}.g-D,.g-Ds{background:var(--act-double)}.g-P{background:var(--act-split)}.g-R{background:var(--act-surr)}
+.legend-row{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--ivory-dim)}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.lg i{font:600 12px var(--font-mono);font-style:normal;min-width:26px;text-align:center;padding:3px 4px;border-radius:4px;color:var(--ivory)}
+.why-list{margin:0;padding-left:18px;display:grid;gap:8px;font-size:14px}
+.tagrow{display:flex;flex-wrap:wrap;gap:8px}
+.tg{display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.3);font:600 13px var(--font-mono)}
+.tg b{font-size:18px}
+.tg.plus b{color:var(--win)}.tg.minus b{color:var(--lose)}
 @media (prefers-reduced-motion:reduce){.card.new,.card.flip{animation:none}}
 </style>
 
@@ -143,6 +247,12 @@ input[type=range]{accent-color:var(--brass);width:100%}
       <span class="eyebrow">Blackjack counting practice</span>
     </div>
     <div class="bank"><span class="eyebrow">Bankroll</span><b id="bank">$1,000</b></div>
+    <button class="icon-btn" id="btnGuide" aria-label="Open the strategy and counting guide">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    </button>
+    <button class="icon-btn" id="btnNet" aria-label="Play with someone on another phone">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c3 .2 5 2.5 5 5.8"/></svg>
+    </button>
     <button class="icon-btn" id="btnSettings" aria-label="Open settings">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
@@ -162,7 +272,7 @@ input[type=range]{accent-color:var(--brass);width:100%}
       <text><textPath href="#arc2" startOffset="50%" text-anchor="middle" id="arcT2"></textPath></text>
     </svg>
     <p class="msg" id="msg" role="status" aria-live="polite"></p>
-    <div class="hands" id="hands"></div>
+    <div class="seats" id="seats"></div>
   </section>
 
   <section id="controls"></section>
@@ -177,6 +287,7 @@ input[type=range]{accent-color:var(--brass);width:100%}
       <div class="ro"><span class="eyebrow" id="tcLabel">True</span><b id="tcVal"></b></div>
       <div class="ro"><span class="eyebrow">Decks left</span><b id="dlVal"></b></div>
     </div>
+    <div id="shoeStats"></div>
     <details class="legend"><summary>Card values</summary><div id="legend"></div></details>
   </section>
 
@@ -189,6 +300,19 @@ input[type=range]{accent-color:var(--brass);width:100%}
     <h2 id="sT">Table settings</h2>
     <div id="settingsBody"></div>
     <button class="btn primary big" data-act="close">Done</button>
+  </div>
+</div>
+<div class="overlay" id="guideOv" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="gT">
+    <div class="sheet-head"><h2 id="gT">Guide</h2><button class="btn small" data-g="close">Close</button></div>
+    <div class="seg gtabs" id="guideTabs" role="group"></div>
+    <div id="guideBody" style="display:grid;gap:12px"></div>
+  </div>
+</div>
+<div class="overlay" id="netOv" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="nT">
+    <div class="sheet-head"><h2 id="nT">Play together</h2><button class="btn small" data-n="close">Close</button></div>
+    <div id="netBody" style="display:grid;gap:12px"></div>
   </div>
 </div>
 <div class="overlay" id="quizOv" hidden>
@@ -204,9 +328,11 @@ const MIN=10,MAX=500,START_BANK=1000;
 const CHIPC={5:'#a3241d',25:'#1d6b48',100:'#26262b',500:'#5b3a8c'};
 const SPEEDS={relaxed:650,casino:380,fast:150};
 const DEFAULTS={decks:6,pen:75,s17:true,bjPay:'3:2',das:true,doubleOn:'any',surrender:'off',resplitAces:false,
-  system:'hilo',quiz:'3',askTC:false,showRC:false,unit:10,hint:false,feedback:true,indices:true,speed:'casino'};
+  system:'hilo',quiz:'3',askTC:false,showRC:false,showCards:false,showEdge:false,unit:10,hint:false,feedback:true,indices:true,speed:'casino',
+  bots:3,startSeat:3,turnover:'stay'};
+/* Computer player habits. They are never labelled at the table, but each seat plays differently. None play perfectly. */
+const STYLE_KEYS=['book','cautious','nobust','mimic','hunch'];
 const STATS0={hands:0,wins:0,losses:0,pushes:0,net:0,cAsked:0,cRight:0,cStreak:0,cBest:0,tAsked:0,tRight:0,sDec:0,sRight:0};
-
 const T=m=>{const o={};for(const r of RANKS)o[r]=(r==='J'||r==='Q'||r==='K')?m['10']:m[r];return o;};
 const SYSTEMS={
   hilo:{name:'Hi-Lo',balanced:true,tags:T({A:-1,2:1,3:1,4:1,5:1,6:1,7:0,8:0,9:0,10:-1})},
@@ -216,6 +342,13 @@ const SYSTEMS={
   omega:{name:'Omega II',balanced:true,tags:T({A:0,2:1,3:1,4:2,5:2,6:2,7:1,8:0,9:-1,10:-2})}
 };
 /* Hi-Lo index plays (Illustrious 18, minus insurance). dir ge: use act when TC >= tc. dir lt: use act when TC < tc. */
+const SYS_DESC={
+  hilo:'The standard starter system. Cards 2 to 6 count +1, 7 to 9 count 0, and 10 to ace count −1. Add them up as cards appear. A high count means the shoe is rich in tens and aces, which favors you.',
+  ko:'Like Hi-Lo, but 7s also count +1, so the count is not balanced and starts below zero. You never divide: bet more once you reach +4.',
+  hiopt:'Ignores aces and 2s. 3 to 6 count +1 and 10s count −1. Simple, but a little less powerful.',
+  zen:'Uses +2 and −2 values for more accuracy than Hi-Lo, but it is harder to keep in your head.',
+  omega:'Values run from −2 to +2 and it is the most precise system here, and the hardest to keep.'
+};
 const INDEX=[
   {hand:'hard',t:16,dv:10,act:'stand',tc:0,dir:'ge'},{hand:'hard',t:15,dv:10,act:'stand',tc:4,dir:'ge'},
   {hand:'pair10',dv:5,act:'split',tc:5,dir:'ge'},{hand:'pair10',dv:6,act:'split',tc:4,dir:'ge'},
@@ -235,13 +368,48 @@ const saved=loadSaved();
 const cfg=Object.assign({},DEFAULTS,saved.cfg||{});
 const stats=Object.assign({},STATS0,saved.stats||{});
 const S={
-  shoe:[],pos:0,total:0,cut:0,rc:0,needShuffle:true,
+  shoe:[],pos:0,total:0,cut:0,rc:0,rcRound:0,seenN:{},needShuffle:true,me:'h',bankOther:START_BANK,rnd:0,settled:0,msgG:'',msgClsG:'',roundNet:{},
   bankroll:typeof saved.bankroll==='number'&&saved.bankroll>=0?saved.bankroll:START_BANK,
-  bet:cfg.unit,lastBet:cfg.unit,phase:'bet',dealer:{cards:[],hole:true,flip:false},hands:[],active:0,insurance:0,
-  msg:'Place your bet.',msgCls:'',coach:'',coachCls:'',sinceQuiz:0
+  phase:'bet',dealer:{cards:[],hole:true,flip:false},seats:[],sel:-1,turn:{s:-1,h:0},insSeat:-1,
+  msg:'Tap a seat to sit, then place your bet.',msgCls:'',coach:'',coachCls:'',hintOpen:false,sinceQuiz:0
 };
 let busy=false;
-function save(){try{localStorage.setItem(KEY,JSON.stringify({cfg:cfg,stats:stats,bankroll:S.bankroll}));}catch(e){}}
+/* Saved only between hands, so leaving mid-hand puts the table back as it was before the deal and no money is lost. */
+const cardId=c=>SUITS.indexOf(c.s)*13+RANKS.indexOf(c.r);
+function snapshot(){
+  return{shoe:S.shoe.map(cardId),pos:S.pos,cut:S.cut,rc:S.rc,needShuffle:S.needShuffle,sinceQuiz:S.sinceQuiz,sel:S.sel,
+    seenN:S.seenN,seats:S.seats.map(x=>({occupant:x.occupant,owner:x.owner,style:x.style,base:x.base,bet:x.bet}))};
+}
+function save(){
+  if(S.phase!=='bet')return;
+  try{
+    /* At someone else's table, keep your own rules and your own saved table. Only your bankroll and stats move on. */
+    if(Net.role==='guest'){if(Net.ready)localStorage.setItem(KEY,JSON.stringify({cfg:Object.assign({},cfg,Net.ownRules),stats:stats,bankroll:S.bankroll,table:saved.table}));return;}
+    localStorage.setItem(KEY,JSON.stringify({cfg:cfg,stats:stats,bankroll:S.bankroll,table:snapshot()}));
+  }catch(e){}
+}
+function restoreTable(){
+  const t=saved.table;
+  try{
+    if(!t||!Array.isArray(t.shoe)||t.shoe.length!==cfg.decks*52||!Array.isArray(t.seats)||t.seats.length!==5)return false;
+    if(!Number.isInteger(t.pos)||t.pos<1||t.pos>t.shoe.length||!Number.isInteger(t.cut)||!Number.isInteger(t.rc))return false;
+    const shoe=t.shoe.map(n=>{if(!Number.isInteger(n)||n<0||n>51)throw new Error('card');return{r:RANKS[n%13],s:SUITS[Math.floor(n/13)]};});
+    const seats=t.seats.map(x=>{
+      if(['open','player','bot'].indexOf(x.occupant)<0)throw new Error('seat');
+      const o=seatObj();o.occupant=x.occupant;
+      if(x.occupant==='bot'){o.style=STYLE_KEYS.indexOf(x.style)>=0?x.style:'book';o.base=Number(x.base)||MIN;o.bet=o.base;}
+      if(x.occupant==='player'){if(x.owner==='g')o.occupant='open';else{o.owner='h';o.bet=Math.max(0,Number(x.bet)||0);}}
+      return o;
+    });
+    S.shoe=shoe;S.total=shoe.length;S.pos=t.pos;S.cut=t.cut;S.rc=S.rcRound=t.rc;S.needShuffle=!!t.needShuffle;
+    S.seenN={};
+    if(t.seenN&&typeof t.seenN==='object'&&RANKS.every(r=>Number.isInteger(t.seenN[r]||0)&&(t.seenN[r]||0)>=0))RANKS.forEach(r=>{if(t.seenN[r])S.seenN[r]=t.seenN[r];});
+    else for(let i=(t.cut===shoe.length?0:1);i<t.pos;i++)S.seenN[shoe[i].r]=(S.seenN[shoe[i].r]||0)+1;
+    S.sinceQuiz=Number(t.sinceQuiz)||0;S.seats=seats;S.sel=Number.isInteger(t.sel)&&t.sel>=0&&t.sel<5?t.sel:-1;
+    fitBets();S.msg='Welcome back. Your table, bankroll, shoe and running count are as you left them.';
+    return true;
+  }catch(e){return false;}
+}
 
 /* ---------- helpers ---------- */
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -255,7 +423,7 @@ const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'
 const cardVal=r=>r==='A'?11:(r==='K'||r==='Q'||r==='J'||r==='10')?10:parseInt(r,10);
 const isRed=c=>c.s.charAt(0)==='♥'||c.s.charAt(0)==='♦';
 const tag=c=>SYSTEMS[cfg.system].tags[c.r];
-const seen=c=>{S.rc+=tag(c);};
+const seen=c=>{S.rc+=tag(c);S.seenN[c.r]=(S.seenN[c.r]||0)+1;};
 const remaining=()=>S.shoe.length-S.pos;
 const decksHalf=()=>Math.max(0.5,Math.round(remaining()/52*2)/2);
 const baseCount=()=>SYSTEMS[cfg.system].balanced?0:4-4*cfg.decks;
@@ -264,6 +432,74 @@ function hv(cards){let t=0,a=0;for(const c of cards){t+=cardVal(c.r);if(c.r==='A
 const isBJ=h=>h.cards.length===2&&!h.fromSplit&&hv(h.cards).total===21;
 const dealerBJ=()=>S.dealer.cards.length===2&&hv(S.dealer.cards).total===21;
 const newHand=bet=>({cards:[],bet:bet,done:false,bust:false,surrendered:false,fromSplit:false,splitAces:false,doubled:false,result:null,net:0});
+
+/* ---------- seats ---------- */
+/* occupant: open | player | bot. Any seat you tap is yours and uses your bankroll. Computer players are unnamed. */
+const seatObj=()=>({occupant:'open',owner:'',style:'',base:0,bet:0,hands:[],insurance:0,insDone:true});
+/* human: any person at the table. mine: a seat that belongs to the person holding this phone. owner is 'h' (host) or 'g' (guest). */
+const human=s=>s.occupant==='player';
+const mine=s=>s.occupant==='player'&&s.owner===S.me;
+const bankOf=s=>human(s)?(s.owner===S.me?S.bankroll:S.bankOther):1e9;
+const funds=s=>bankOf(s);
+function spend(s,amt){if(!human(s))return;if(s.owner===S.me)S.bankroll=r2(S.bankroll-amt);else S.bankOther=r2(S.bankOther-amt);}
+function newBot(){return{style:STYLE_KEYS[rnd(STYLE_KEYS.length)],base:[10,10,15,25,25,50,100][rnd(7)]};}
+function placeBot(s,b){Object.assign(s,seatObj(),{occupant:'bot',style:b.style,base:b.base,bet:b.base});}
+function botBet(s){const m=[0.5,1,1,1,1,2][rnd(6)];return Math.max(MIN,Math.min(MAX,Math.round(s.base*m/5)*5));}
+const playerBets=(skip,who)=>S.seats.reduce((a,s,i)=>a+(human(s)&&s.owner===who&&i!==skip?s.bet:0),0);
+const roomFor=i=>{const s=S.seats[i],o=(s&&s.owner)||S.me,bank=o===S.me?S.bankroll:S.bankOther;return Math.max(0,Math.min(MAX,Math.floor((bank-playerBets(i,o))/5)*5));};
+function defaultBet(i){const b=Math.min(Math.max(cfg.unit,MIN),roomFor(i));return b>=MIN?b:0;}
+function fitBets(){S.seats.forEach((s,i)=>{if(human(s))s.bet=Math.min(s.bet,roomFor(i));});}
+function setupTable(){
+  const old=S.seats.slice();
+  S.seats=[0,1,2,3,4].map(i=>old[i]&&human(old[i])&&old[i].owner==='g'?old[i]:seatObj());
+  const free=[0,1,2,3,4].filter(i=>!human(S.seats[i]));
+  let ps=Math.min(4,Math.max(0,cfg.startSeat-1));
+  if(free.indexOf(ps)<0)ps=free.length?free[0]:-1;
+  const others=shuffle(free.filter(i=>i!==ps));
+  for(let i=0;i<Math.min(4,cfg.bots)&&i<others.length;i++)placeBot(S.seats[others[i]],newBot());
+  if(ps>=0){S.seats[ps].occupant='player';S.seats[ps].owner='h';S.seats[ps].bet=defaultBet(ps);S.sel=ps;}
+}
+/* Between hands only. Seats you sit in are left alone. */
+function turnover(){
+  if(cfg.turnover!=='come')return'';
+  const notes=[];
+  S.seats.forEach((s,i)=>{
+    if(s.occupant==='bot'&&rnd(100)<15){notes.push('A player left seat '+(i+1)+'.');Object.assign(s,seatObj());}
+    else if(s.occupant==='open'&&rnd(100)<15){placeBot(s,newBot());notes.push('A player sat down at seat '+(i+1)+'.');}
+  });
+  return notes.join(' ');
+}
+function betCheck(){
+  const other=S.me==='h'?'g':'h',tot=playerBets(-1,S.me),bad=S.seats.findIndex(s=>human(s)&&s.bet>0&&s.bet<MIN);
+  const any=S.seats.some(s=>s.occupant==='bot'||(human(s)&&s.bet>=MIN));
+  let why='';
+  if(bad>=0)why='Seat '+(bad+1)+' needs at least '+fmt(MIN)+', or leave it to sit out.';
+  else if(tot>S.bankroll)why='Your bets add up to more than your bankroll.';
+  else if(playerBets(-1,other)>S.bankOther)why='The other player\u2019s bets add up to more than their bankroll.';
+  else if(!any)why='Tap a seat to sit down and bet.';
+  return{ok:!why,why:why,tot:tot};
+}
+/* Turn order: seat 1 to 5, each seat's hands left to right. */
+function cur(){const s=S.seats[S.turn.s];const h=s&&s.hands[S.turn.h];return h?{s:s,h:h}:null;}
+function nextSeat(from){let i=from;while(i<5&&!S.seats[i].hands.length)i++;S.turn={s:i,h:0};}
+function nextTurn(){const s=S.seats[S.turn.s];if(s&&S.turn.h<s.hands.length-1)S.turn.h++;else nextSeat(S.turn.s+1);}
+const seatTag=i=>'Seat '+(i+1);
+/* Sum of tags over every card face up at the table right now. */
+function tableTally(){
+  let t=0;
+  S.dealer.cards.forEach((c,i)=>{if(!(i===1&&S.dealer.hole))t+=tag(c);});
+  for(const s of S.seats)for(const h of s.hands)for(const c of h.cards)t+=tag(c);
+  return t;
+}
+function checkCount(){
+  const want=S.rcRound+tableTally();
+  let ok=S.rc===want;
+  if(!ok)console.error('Running count drifted: have '+S.rc+', table says '+want);
+  const tags=SYSTEMS[cfg.system].tags;let fromSeen=baseCount();
+  for(const r of RANKS)fromSeen+=(S.seenN[r]||0)*tags[r];
+  if(fromSeen!==S.rc){console.error('Cards-seen table says '+fromSeen+' but the running count is '+S.rc);ok=false;}
+  return ok;
+}
 
 /* ---------- randomness and shoe ---------- */
 function rnd(n){
@@ -277,16 +513,17 @@ function newShoe(){
   const cards=shuffle(fullDecks());
   S.shoe=cards;S.total=cards.length;S.pos=1; /* one unseen burn card */
   S.cut=Math.max(10,Math.min(Math.floor(S.total*cfg.pen/100),S.total-14));
-  S.rc=baseCount();S.needShuffle=false;
+  S.rc=baseCount();S.seenN={};S.needShuffle=false;
 }
 function emergency(){
-  const inPlay=S.dealer.cards.concat(...S.hands.map(h=>h.cards));
+  const inPlay=S.dealer.cards.slice();
+  for(const s of S.seats)for(const h of s.hands)inPlay.push(...h.cards);
   const rest=fullDecks();
   for(const c of inPlay){const i=rest.findIndex(x=>x.r===c.r&&x.s===c.s);if(i>=0)rest.splice(i,1);}
   shuffle(rest);
   S.shoe=inPlay.concat(rest);S.pos=inPlay.length;S.total=S.shoe.length;S.cut=S.total;
-  S.rc=baseCount();
-  inPlay.forEach(c=>{const hidden=S.dealer.hole&&c===S.dealer.cards[1];if(!hidden)S.rc+=tag(c);});
+  S.rc=S.rcRound=baseCount();S.seenN={};
+  inPlay.forEach(c=>{const hidden=S.dealer.hole&&c===S.dealer.cards[1];if(!hidden)seen(c);});
   S.needShuffle=true;S.msg='The shoe ran out, so the dealer reshuffled mid-hand.';
 }
 function draw(){if(S.pos>=S.shoe.length)emergency();return S.shoe[S.pos++];}
@@ -298,20 +535,21 @@ function describe(h,up){
   if(h.cards.length===2&&cardVal(h.cards[0].r)===cardVal(h.cards[1].r))return'pair of '+PAIRN[cardVal(h.cards[0].r)]+' vs '+u;
   return(v.soft?'soft ':'hard ')+v.total+' vs '+u;
 }
-function available(){
-  const h=S.hands[S.active];
-  if(S.phase!=='player'||!h||h.done)return{};
+function avail(s,h){
+  if(!h||h.done)return{};
   const two=h.cards.length===2,v=hv(h.cards),a={hit:!h.splitAces,stand:true};
-  let dbl=two&&S.bankroll>=h.bet&&!h.splitAces;
+  let dbl=two&&funds(s)>=h.bet&&!h.splitAces;
   if(dbl&&h.fromSplit&&!cfg.das)dbl=false;
   if(dbl&&cfg.doubleOn==='9-11')dbl=!v.soft&&v.total>=9&&v.total<=11;
-  a.double=dbl;a.split=canSplit(h);
-  a.surrender=cfg.surrender==='late'&&two&&!h.fromSplit&&S.hands.length===1;
+  a.double=dbl;a.split=canSplit(s,h);
+  a.surrender=cfg.surrender==='late'&&two&&!h.fromSplit&&s.hands.length===1;
   return a;
 }
-function canSplit(h){
+/* Actions open to the player right now: only on a hand they control, on its turn. */
+function available(){const c=cur();return S.phase==='player'&&c&&mine(c.s)?avail(c.s,c.h):{};}
+function canSplit(s,h){
   if(h.cards.length!==2||cardVal(h.cards[0].r)!==cardVal(h.cards[1].r))return false;
-  if(S.hands.length>=4||S.bankroll<h.bet)return false;
+  if(s.hands.length>=4||funds(s)<h.bet)return false;
   if(h.splitAces&&h.cards[0].r==='A'&&!cfg.resplitAces)return false;
   return true;
 }
@@ -353,11 +591,65 @@ function basic(h,dv,a){
   if(t===9)return(dv>=3&&dv<=6)?dh:'hit';
   return'hit';
 }
-function recommend(){
-  const h=S.hands[S.active],up=S.dealer.cards[0],dv=cardVal(up.r),a=available();
-  let act=basic(h,dv,a),why='basic strategy';
+/* ---------- explanations: why each play is right ---------- */
+/* Rough chance the dealer busts from each upcard (multi-deck, dealer stands on soft 17). */
+const BUST_UP={2:35,3:37,4:40,5:42,6:42,7:26,8:24,9:23,10:23,11:17};
+const upName=dv=>dv===11?'an ace':'a '+dv;
+/* Chance, in percent, that one more card busts a hard total. */
+function bustHit(t){let n=0;for(const r of RANKS){if(t+(r==='A'?1:cardVal(r))>21)n++;}return Math.round(n/13*100);}
+const ucf=s=>s.charAt(0).toUpperCase()+s.slice(1);
+function explain(h,dv,act,a){
+  const v=hv(h.cards),t=v.total,two=h.cards.length===2,up=upName(dv),bu=BUST_UP[dv],weak=dv>=2&&dv<=6;
+  const pair=two&&cardVal(h.cards[0].r)===cardVal(h.cards[1].r)?cardVal(h.cards[0].r):0;
+  const dealer=weak?'The dealer shows '+up+' and busts about '+bu+'% of the time.'
+    :'The dealer shows '+up+' and busts only about '+bu+'% of the time, so they usually finish with 17 or better.';
+  if(act==='surrender')return 'A '+t+' against '+up+' wins well under a third of the time. Surrendering gives back half your bet, which loses less on average than playing it out.';
+  if(act==='split'){
+    if(pair===11)return 'One hand of A,A is only a soft 12, but each ace on its own is a great start: any ten makes 21, and you get two chances at it.';
+    if(pair===8)return 'Two 8s make 16, the worst hand in the game. Split them and each hand starts from 8, which is far easier to play. '+(weak?dealer:'Even against a strong dealer card, splitting loses less than keeping 16.');
+    if(pair===9)return weak?'Your 18 is good, but two hands starting from 9 do better against a weak dealer. '+dealer:'Against '+up+', one 18 is only a small favorite. Two hands starting from 9 earn more on average.';
+    if(pair===7)return 'Two 7s make a poor 14, and the dealer is weak or middling. Two hands starting from 7 do better than one 14. '+dealer;
+    if(pair===6)return 'Two 6s make a stiff 12. '+dealer+' Two hands starting from 6 take more advantage of that than one 12.';
+    if(pair===4)return 'The dealer’s 5 and 6 are the weakest cards. '+dealer+' Two hands starting from 4 profit from that.';
+    if(pair===10)return 'The shoe is rich in tens, so each ten is likely to get another one for a 20, and '+up+' is a weak dealer card that tends to bust.';
+    return 'Two small cards against a weak dealer card are better as two hands than as one stiff hand. '+dealer;
+  }
+  const dblIdeal=(act==='hit'||act==='stand')&&!a.double&&basic(h,dv,Object.assign({},a,{double:true}))==='double';
+  const pre=dblIdeal?'You would normally double here, but doubling is not available right now. ':'';
+  if(pair===10&&act==='stand')return 'Twenty is already a winning hand against almost everything. Splitting would break up a great hand.';
+  if(act==='double'){
+    if(v.soft)return dealer+' A soft hand cannot bust on the next card because the ace can drop to 1, so doubling is low risk and puts more money on a good spot.';
+    if(t===11)return 'Any ten-value card, the most common card in the deck, makes 21. You are a favorite here, so put more money on it. '+dealer;
+    if(t===10)return 'A ten-value card makes 20. You are a favorite here, so put more money on it. '+dealer;
+    return dealer+' One card often takes your '+t+' to a strong hand, while the dealer risks busting, so doubling pays.';
+  }
+  if(act==='stand'){
+    if(v.soft)return pre+(t>=19?'Soft '+t+' is already strong, and a hit could only make it worse or no better.':'Soft '+t+' holds up well against '+up+' and a hit would more often make it worse than better. '+dealer);
+    if(t>=17)return pre+'Hitting a hard '+t+' busts '+bustHit(t)+'% of the time, and '+t+' or more already holds up well.';
+    return pre+dealer+' Hitting your '+t+' would bust '+bustHit(t)+'% of the time, so let the dealer take the risk.';
+  }
+  if(act==='hit'){
+    if(v.soft)return pre+'A soft '+t+' cannot bust on one card because the ace can drop to 1, and it loses to '+up+' too often as it stands. Hitting is free to try.';
+    if(t<=11&&dv===11&&t===11)return 'Against a dealer ace, a plain hit does slightly better than doubling 11 in this game.';
+    if(t<=11)return pre+'You cannot bust with one card, so take the chance to improve. '+dealer;
+    if(weak)return pre+'With '+up+', the dealer busts only about '+bu+'% of the time, which is not enough to stand on '+t+'. A hit busts you '+bustHit(t)+'% of the time, and your hand is weak as it is.';
+    return pre+dealer+' Standing on '+t+' loses most of the time. A hit busts you '+bustHit(t)+'% of the time, but you need to improve.';
+  }
+  return '';
+}
+function indexWhy(r,tc,act){
+  const rich=r.dir==='ge';
+  const lead='The true count is '+sgn(tc)+', so the unseen cards are '+(rich?'richer':'poorer')+' in tens than normal. ';
+  if(act==='stand')return lead+'The dealer is more likely to bust, and a hit is more likely to bust you, so standing beats the usual play.';
+  if(act==='double')return lead+'Your 9, 10 or 11 turns into a strong total more often, so doubling is worth the extra bet.';
+  if(act==='split')return lead+'Each ten is likely to get another ten for a 20, and the dealer’s weak card is likely to bust, so two hands beat one 20.';
+  return lead+'With fewer tens left, the dealer is less likely to bust and your hit is less likely to bust you, so hitting beats standing.';
+}
+function recommend(s,h){
+  const up=S.dealer.cards[0],dv=cardVal(up.r),a=avail(s,h);
+  let act=basic(h,dv,a),why='basic strategy',hit=null,tc=0;
   if(cfg.system==='hilo'&&cfg.indices&&act!=='surrender'){
-    const v=hv(h.cards),tc=Math.floor(S.rc/decksHalf()),two=h.cards.length===2;
+    const v=hv(h.cards),two=h.cards.length===2;tc=Math.floor(S.rc/decksHalf());
     for(const r of INDEX){
       if(r.dv!==dv)continue;
       if(r.hand==='pair10'){if(!(two&&cardVal(h.cards[0].r)===10&&cardVal(h.cards[1].r)===10&&a.split))continue;}
@@ -367,15 +659,50 @@ function recommend(){
       let want=r.act;
       if(want==='double'&&!a.double)want='hit';
       if(want==='split'&&!a.split)continue;
-      if(want!==act){act=want;why='index play at true count '+sgn(tc);}
+      if(want!==act){act=want;why='index play at true count '+sgn(tc);hit=r;}
       break;
     }
   }
-  return{act:act,why:why,desc:describe(h,up)};
+  return{act:act,why:why,desc:describe(h,up),reason:hit?indexWhy(hit,tc,act):explain(h,dv,act,a)};
 }
 function recIns(){
-  if(cfg.system==='hilo'&&cfg.indices&&Math.floor(S.rc/decksHalf())>=3)return{act:true,why:'the true count is +3 or higher'};
-  return{act:false,why:'insurance loses money at ordinary counts'};
+  const base='Insurance pays 2 to 1, so it only breaks even when more than 1 in 3 unseen cards is a ten. In a fresh shoe about 31% are.';
+  if(cfg.system==='hilo'&&cfg.indices){
+    const tc=Math.floor(S.rc/decksHalf());
+    if(tc>=3)return{act:true,why:'the true count is +3 or higher',reason:base+' At a true count of '+sgn(tc)+' the shoe holds enough extra tens to push that past 1 in 3, so insurance now pays off.'};
+  }
+  return{act:false,why:'insurance loses money at ordinary counts',reason:base+' At an ordinary count it loses money over time. With Hi-Lo it turns profitable at a true count of +3 or higher.'};
+}
+/* Casino regulars: start from basic strategy, then bend it to the seat's style. */
+function botDecide(s,h){
+  const a=avail(s,h),dv=cardVal(S.dealer.cards[0].r),v=hv(h.cards),st=s.style;
+  const pv=h.cards.length===2&&cardVal(h.cards[0].r)===cardVal(h.cards[1].r)?cardVal(h.cards[0].r):0;
+  const without=o=>basic(h,dv,Object.assign({},a,o));
+  let k=basic(h,dv,a);
+  if(st==='book'){
+    if(rnd(100)<8)k=k==='hit'?'stand':k==='stand'?(v.total<17?'hit':'stand'):without({double:false,split:false});
+  }else if(st==='cautious'){
+    if(k==='hit'&&!v.soft&&v.total>=12&&v.total<=16&&dv>=7&&rnd(100)<60)k='stand';
+  }else if(st==='nobust'){
+    if(k==='split'&&pv!==11&&pv!==8)k=without({split:false});
+    if(k!=='split'&&!v.soft&&v.total>=12)k='stand';
+  }else if(st==='mimic'){
+    k=v.total<17||(v.total===17&&v.soft&&!cfg.s17)?'hit':'stand';
+  }else if(st==='hunch'){
+    if(k==='double'&&rnd(100)<80)k=without({double:false});
+    else if(pv===10&&a.split&&rnd(100)<6)k='split';
+    else if(rnd(100)<5&&(k==='hit'||k==='stand'))k=k==='hit'?'stand':(v.total<17?'hit':'stand');
+  }
+  if(k==='surrender'&&st!=='book')k=without({surrender:false});
+  if(!a[k])k=a.hit&&v.total<12?'hit':'stand';
+  return k;
+}
+function botIns(s){
+  const st=s.style;
+  if(st==='hunch')return rnd(100)<50;
+  if(st==='nobust')return rnd(100)<25;
+  if(st==='cautious')return isBJ(s.hands[0]); /* even money */
+  return false;
 }
 
 /* ---------- rendering ---------- */
@@ -408,22 +735,35 @@ function renderTable(){
   $('#arcT1').textContent='Blackjack pays '+cfg.bjPay.replace(':',' to ');
   $('#arcT2').textContent='Dealer '+(cfg.s17?'stands':'hits')+' on soft 17';
   const m=$('#msg');m.textContent=S.msg;m.className='msg '+(S.msgCls||'');
-  if(!S.hands.length){$('#hands').innerHTML='<div class="spot">'+(S.bet?fmt(S.bet):'Bet')+'</div>';return;}
-  $('#hands').innerHTML=S.hands.map((h,i)=>{
-    const active=S.phase==='player'&&i===S.active&&!h.done;
+  $('#seats').innerHTML=S.seats.map(seatHTML).join('');
+}
+function seatHTML(s,i){
+  const turn=(S.phase==='player'&&S.turn.s===i)||(S.phase==='insurance'&&S.insSeat===i);
+  const me=mine(s),oth=human(s)&&!me;
+  const cls=['seat',s.occupant];
+  if(oth)cls.push('other');
+  if(turn)cls.push('turn');
+  if(S.phase==='bet'&&S.sel===i)cls.push('sel');
+  if(me)cls.push('mine');
+  const hands=s.hands.map((h,j)=>{
+    const active=S.phase==='player'&&S.turn.s===i&&S.turn.h===j&&!h.done;
     const res=h.result?RESULT[h.result]:null;
     return'<div class="hand'+(active?' active':'')+'"><div class="cards">'+h.cards.map(c=>cardHTML(c,false,false)).join('')+'</div>'
-      +'<div class="meta">'+(S.hands.length>1?'<span class="eyebrow">Hand '+(i+1)+'</span>':'')
-      +(h.cards.length?'<span class="pill">'+totalTxt(h)+'</span>':'')
-      +'<span class="pill bet">'+fmt(h.bet)+'</span>'
-      +(res?'<span class="badge '+res[1]+'">'+res[0]+(h.net?' '+fmtS(h.net):'')+'</span>':'')+'</div></div>';
+      +'<div class="meta">'+(h.cards.length?'<span class="pill">'+(isBJ(h)?'BJ':totalTxt(h))+'</span>':'')
+      +(human(s)&&(s.hands.length>1||h.doubled)?'<span class="pill bet">'+fmt(h.bet)+'</span>':'')
+      +(res?'<span class="badge '+res[1]+'">'+res[0]+(h.net&&human(s)?' '+fmtS(h.net):'')+'</span>':'')+'</div></div>';
   }).join('');
+  const bet=S.phase==='bet';
+  const spot=human(s)?(s.bet?fmt(s.bet):(me?'Bet':'···')):(bet?'+':'');
+  const label='Seat '+(i+1)+(me?', yours, bet '+fmt(s.bet)+'.':oth?', the other player, bet '+fmt(s.bet)+'.':bet?'. Tap to play this seat.':'.');
+  return'<div class="'+cls.join(' ')+'" data-seat="'+i+'"><div class="seat-hands">'+hands+'</div>'
+    +'<button class="chipspot" aria-label="'+esc(label)+'">'+spot+'</button><div class="seat-name">'+(i+1)+'</div></div>';
 }
 function suggestHTML(){
   if(!cfg.showRC)return'';
   if(cfg.system==='hilo'){
     const tc=Math.floor(S.rc/decksHalf()),u=tc<=1?1:tc===2?2:tc===3?4:tc===4?6:8;
-    const amt=Math.max(MIN,Math.min(u*cfg.unit,MAX,Math.floor(S.bankroll/5)*5));
+    const amt=Math.max(MIN,Math.min(u*cfg.unit,roomFor(S.sel)));
     return'<button class="suggest" data-act="useSuggest" data-v="'+amt+'">Count suggests '+u+' unit'+(u>1?'s':'')+': bet '+fmt(amt)+'</button>';
   }
   if(cfg.system==='ko')return'<p class="note">'+(S.rc>=4?'At or above the pivot (+4): raise your bet.':'Below the pivot (+4): bet the minimum.')+'</p>';
@@ -431,29 +771,52 @@ function suggestHTML(){
 }
 const VERB={hit:'hit',stand:'stand',double:'double',split:'split',surrender:'surrender'};
 function coachHTML(){return S.coach?'<p class="coach '+S.coachCls+'">'+esc(S.coach)+'</p>':'';}
+const BULB='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>';
+function hintBtn(on){
+  const open=S.hintOpen||cfg.hint;
+  return'<button class="icon-btn sm" data-act="hint" aria-pressed="'+open+'" aria-label="'+(open?'Hide the hint':'Show a hint and why')+'" '+(on&&!cfg.hint?'':'disabled')+'>'+BULB+'</button>';
+}
+function hintCard(head,sub,reason){return'<div class="hint-card"><b>Hint: '+esc(head)+'</b><span>'+esc(sub)+'</span><p>Why: '+esc(reason)+'</p></div>';}
 function renderControls(){
   const el=$('#controls'),ph=S.phase;let html='';
   if(ph==='bet'){
-    if(S.bankroll<MIN){
-      html='<div class="panel"><p class="note">You are out of chips for this table.</p><button class="btn primary big" data-act="reload">Reload '+fmt(START_BANK)+'</button></div>';
+    const bc=betCheck(),s=S.seats[S.sel],seated=S.seats.map((x,i)=>mine(x)?i+1:0).filter(Boolean);
+    let top;
+    if(s&&mine(s)){
+      const room=roomFor(S.sel);
+      top='<div class="bet-top"><div><span class="eyebrow">Seat '+(S.sel+1)+' bet</span><b class="bet-amt">'+fmt(s.bet)+'</b></div><span class="limits">Table '+fmt(MIN)+' to '+fmt(MAX)+'</span></div>'
+        +'<div class="chips">'+[5,25,100,500].map(v=>'<button class="chip" style="--c:'+CHIPC[v]+'" data-act="chip" data-v="'+v+'" '+(s.bet+v>room?'disabled':'')+' aria-label="Add '+v+' dollars to seat '+(S.sel+1)+'">'+v+'</button>').join('')
+        +'<button class="btn ghost" data-act="clear">Clear</button></div>'+suggestHTML()
+        +'<button class="btn small" data-act="leave">Leave seat</button>';
     }else{
-      const cap=Math.min(MAX,S.bankroll);
-      html='<div class="panel"><div class="bet-top"><div><span class="eyebrow">Your bet</span><b class="bet-amt">'+fmt(S.bet)+'</b></div><span class="limits">Table '+fmt(MIN)+' to '+fmt(MAX)+'</span></div>'
-        +'<div class="chips">'+[5,25,100,500].map(v=>'<button class="chip" style="--c:'+CHIPC[v]+'" data-act="chip" data-v="'+v+'" '+(S.bet+v>cap?'disabled':'')+' aria-label="Add '+v+' dollars">'+v+'</button>').join('')
-        +'<button class="btn ghost" data-act="clear">Clear</button></div>'+suggestHTML()+coachHTML()
-        +'<button class="btn primary big" data-act="deal" '+(S.bet<MIN||S.bet>cap?'disabled':'')+'>Deal</button></div>';
+      top='<p class="note">Tap any seat to play it. Every seat you tap is yours, and each has its own bet. Seat 1 is dealt first.</p>';
     }
+    html='<div class="panel">'+top+coachHTML()+(Net.peer?'<p class="note">Seats outlined in blue are the other player\u2019s. Either of you can tap Deal once your bets are in.</p>':'')
+      +(S.bankroll<MIN?'<p class="note">You are out of chips for this table.</p><button class="btn" data-act="reload">Reload '+fmt(START_BANK)+'</button>':'')
+      +'<p class="note">'+(seated.length?'Your seat'+(seated.length>1?'s':'')+': '+seated.join(', ')+' · total bet '+fmt(bc.tot):'You are not seated. Deal to watch the table and count.')+'</p>'
+      +(bc.why?'<p class="coach bad">'+bc.why+'</p>':'')
+      +'<button class="btn primary big" data-act="deal" '+(bc.ok?'':'disabled')+'>Deal</button></div>';
   }else if(ph==='insurance'){
-    const cost=r2(S.hands[0].bet/2),rec=cfg.hint?recIns():null;
-    html='<div class="panel"><p class="note">Insurance costs '+fmt(cost)+' and pays 2 to 1 if the dealer has blackjack.</p>'
-      +'<div class="actions"><button class="btn'+(rec&&rec.act?' rec':'')+'" data-act="ins-yes" '+(S.bankroll<cost?'disabled':'')+'>Take insurance <kbd>Y</kbd></button>'
-      +'<button class="btn'+(rec&&!rec.act?' rec':'')+'" data-act="ins-no">No insurance <kbd>N</kbd></button></div>'
-      +(rec?'<p class="coach hint">Hint: '+(rec.act?'take it':'decline')+', because '+rec.why+'.</p>':'')+'</div>';
+    const s=S.seats[S.insSeat];
+    if(s&&!mine(s)){
+      html='<div class="panel"><p class="note"><b>'+seatTag(S.insSeat)+'.</b> Waiting for the other player to answer insurance.</p></div>';
+    }else if(s){
+      const cost=r2(s.hands[0].bet/2),rec=(cfg.hint||S.hintOpen)?recIns():null;
+      html='<div class="panel"><div class="panel-head"><p class="note"><b>'+seatTag(S.insSeat)+'.</b> Insurance costs '+fmt(cost)+' and pays 2 to 1 if the dealer has blackjack.</p>'+hintBtn(!busy)+'</div>'
+        +'<div class="actions"><button class="btn'+(rec&&rec.act?' rec':'')+'" data-act="ins-yes" '+(funds(s)<cost?'disabled':'')+'>Take insurance <kbd>Y</kbd></button>'
+        +'<button class="btn'+(rec&&!rec.act?' rec':'')+'" data-act="ins-no">No insurance <kbd>N</kbd></button></div>'
+        +(rec?hintCard(rec.act?'take insurance':'decline insurance','because '+rec.why,rec.reason):'')+coachHTML()+'</div>';
+    }
   }else{
-    const live=ph==='player'&&!busy,a=live?available():{},rec=(live&&cfg.hint)?recommend():null;
+    const c=cur(),my=ph==='player'&&c&&mine(c.s),live=my&&!busy,a=live?available():{},rec=(live&&(cfg.hint||S.hintOpen))?recommend(c.s,c.h):null;
     const b=(k,l,key)=>'<button class="btn'+(rec&&rec.act===k?' rec':'')+'" data-act="'+k+'" '+(!a[k]?'disabled':'')+'>'+l+' <kbd>'+key+'</kbd></button>';
-    html='<div class="panel"><div class="actions">'+b('hit','Hit','H')+b('stand','Stand','S')+b('double','Double','D')+b('split','Split','P')+(cfg.surrender==='late'?b('surrender','Surrender','R'):'')+'</div>'
-      +(rec?'<p class="coach hint">Hint: '+VERB[rec.act]+' on '+rec.desc+' ('+rec.why+').</p>':'')+coachHTML()+'</div>';
+    let who='';
+    if(ph==='player'&&c){
+      const n=c.s.hands.length;
+      who='<div class="panel-head"><p class="note"><b>'+(my?'Your turn: ':human(c.s)?'Waiting on ':'Now playing: ')+seatTag(S.turn.s)+(n>1?', hand '+(S.turn.h+1)+' of '+n:'')+'.</b></p>'+hintBtn(live)+'</div>';
+    }
+    html='<div class="panel">'+who+'<div class="actions">'+b('hit','Hit','H')+b('stand','Stand','S')+b('double','Double','D')+b('split','Split','P')+(cfg.surrender==='late'?b('surrender','Surrender','R'):'')+'</div>'
+      +(rec?hintCard(ucf(VERB[rec.act]),rec.desc+' ('+rec.why+')',rec.reason):'')+coachHTML()+'</div>';
   }
   el.innerHTML=html;
 }
@@ -461,6 +824,80 @@ function legendHTML(){
   const sys=SYSTEMS[cfg.system],g={};
   for(const r of RANKS){const v=sys.tags[r];(g[v]=g[v]||[]).push(r);}
   return Object.keys(g).map(Number).sort((a,b)=>b-a).map(v=>'<div>'+(v>0?'+':v<0?'−':' ')+Math.abs(v)+'&nbsp;&nbsp;'+g[v].join(' ')+'</div>').join('');
+}
+/* ---------- shoe breakdown: why the count is what it is, and who the shoe favors ---------- */
+const HI_R=['10','J','Q','K','A'],LO_R=['2','3','4','5','6'],MID_R=['7','8','9'];
+/* Rough house edge for the current rules at the top of a fresh shoe, in percent. Approximate published rule adjustments. */
+function baseEdge(){
+  let e=0.40;
+  e+={1:-0.48,2:-0.19,3:-0.12,4:-0.06,5:-0.02,6:0,7:0.01,8:0.02}[cfg.decks]||0;
+  if(!cfg.s17)e+=0.22;
+  if(cfg.bjPay==='6:5')e+=1.39;
+  if(!cfg.das)e+=0.14;
+  if(cfg.doubleOn==='9-11')e+=0.28;
+  if(cfg.surrender==='late')e-=0.08;
+  if(cfg.resplitAces)e-=0.08;
+  return e;
+}
+const pct1=x=>x.toFixed(1)+'%';
+function accHTML(key,title,open,body){
+  return'<div class="acc"><button type="button" class="acc-btn" data-acc="'+key+'" aria-expanded="'+open+'"><span>'+title+'</span><span aria-hidden="true">'+(open?'▴':'▾')+'</span></button>'
+    +(open?'<div class="acc-body">'+body+'</div>':'')+'</div>';
+}
+function cardsBody(){
+  const sys=SYSTEMS[cfg.system],per=cfg.decks*4,n=r=>S.seenN[r]||0;
+  let dealt=0;for(const r of RANKS)dealt+=n(r);
+  const dl=decksHalf();
+  let h='<p class="sub">'+dealt+' card'+(dealt===1?'':'s')+' seen since the shuffle, about '+remaining()+' left in the shoe (~'+dl.toFixed(1)+' decks). The burn card is never counted, and the dealer’s face-down card counts once it is turned over.</p>'
+    +'<div class="rkgrid">'+RANKS.map(r=>{
+      const t=sys.tags[r],cls=t>0?'plus':t<0?'minus':'zero';
+      return'<div class="rk '+cls+'" style="--p:'+Math.min(100,n(r)/per*100).toFixed(0)+'%"><b>'+r+'</b><span>'+n(r)+' of '+per+'</span><i>'+sgn(t)+'</i></div>';
+    }).join('')+'</div>';
+  const g={};for(const r of RANKS){const v=sys.tags[r];(g[v]=g[v]||[]).push(r);}
+  let sum=baseCount();
+  const rows=Object.keys(g).map(Number).sort((a,b)=>b-a).map(v=>{
+    const k=g[v].reduce((a,r)=>a+n(r),0);sum+=v*k;
+    return'<tr><td>'+g[v].join(' ')+'</td><td>'+sgn(v)+' × '+k+'</td><td>'+sgn(v*k)+'</td></tr>';
+  }).join('');
+  h+='<h3>How the running count adds up</h3><div class="chart-wrap"><table class="chart plainchart"><thead><tr><th class="rl">Cards</th><th>Tag × seen</th><th>Adds</th></tr></thead><tbody>'
+    +(sys.balanced?'':'<tr><td>Start</td><td>'+cfg.decks+' deck'+(cfg.decks>1?'s':'')+'</td><td>'+sgn(baseCount())+'</td></tr>')
+    +rows+'<tr><td><b>Running count</b></td><td></td><td><b>'+sgn(sum)+'</b></td></tr></tbody></table></div>'
+    +(sum!==S.rc?'<p class="coach bad">This table adds to '+sgn(sum)+' but the running count says '+sgn(S.rc)+'. Please report this.</p>':'');
+  h+=sys.balanced
+    ?'<p class="sub">True count = running count ÷ decks left = '+sgn(S.rc)+' ÷ '+dl.toFixed(1)+' = '+sgn1(S.rc/dl)+'. Decks left is rounded to the nearest half deck.</p>'
+    :'<p class="sub">KO has no true count. Compare the running count with the pivot of +4.</p>';
+  return h;
+}
+function edgeBody(){
+  const per=cfg.decks*4,n=r=>S.seenN[r]||0,all=per*13;
+  let dealt=0;for(const r of RANKS)dealt+=n(r);
+  const pool=Math.max(1,all-dealt);
+  const left=rs=>rs.reduce((a,r)=>a+per-n(r),0);
+  const hi=left(HI_R),mid=left(MID_R),lo=left(LO_R);
+  const p=x=>x/pool*100,fresh=k=>k*per/all*100;
+  /* Hi-Lo true count of the cards actually left, whichever system you count with. */
+  const hl=SYSTEMS.hilo.tags;let hrc=0;for(const r of RANKS)hrc+=n(r)*hl[r];
+  const decksExact=Math.max(0.25,remaining()/52),tc=hrc/decksExact;
+  const he=baseEdge(),edge=-he+0.5*tc;
+  const mpos=((Math.max(-2,Math.min(3,edge))+2)/5*100).toFixed(0);
+  const who=Math.abs(edge)<0.05?'About even':edge>0?'You: +'+pct1(edge):'Dealer: +'+pct1(-edge);
+  const ten=(per*4-['10','J','Q','K'].reduce((a,r)=>a+n(r),0))/pool*100,ace=(per-n('A'))/pool*100;
+  return'<p class="sub">Tens and aces help you: they make blackjacks, bust the dealer and strengthen your doubles. Small cards (2 to 6) help the dealer. This shows how the cards still unseen compare with a fresh shoe.</p>'
+    +'<div class="stack" role="img" aria-label="Unseen cards: '+pct1(p(hi))+' tens and aces, '+pct1(p(mid))+' sevens to nines, '+pct1(p(lo))+' twos to sixes">'
+    +'<span class="hi" style="flex:'+hi+'">'+pct1(p(hi))+'</span><span class="mid" style="flex:'+mid+'">'+pct1(p(mid))+'</span><span class="lo" style="flex:'+lo+'">'+pct1(p(lo))+'</span></div>'
+    +'<div class="stack-key"><span><i class="hi"></i>Tens and aces (your favor) '+pct1(p(hi))+', fresh '+pct1(fresh(5))+'</span>'
+    +'<span><i class="mid"></i>7 to 9 (neutral) '+pct1(p(mid))+', fresh '+pct1(fresh(3))+'</span>'
+    +'<span><i class="lo"></i>2 to 6 (dealer’s favor) '+pct1(p(lo))+', fresh '+pct1(fresh(5))+'</span></div>'
+    +'<p class="sub">Next card: a ten-value '+pct1(ten)+' (fresh '+pct1(fresh(4))+'), an ace '+pct1(ace)+' (fresh '+pct1(fresh(1))+').</p>'
+    +'<h3>Estimated edge right now</h3>'
+    +'<div class="meter" style="--m:'+mpos+'%"><i></i></div>'
+    +'<div class="meter-key"><span>Dealer’s favor</span><b>'+who+'</b><span>Your favor</span></div>'
+    +'<p class="sub">Rough estimate: your rules start '+(he>=0.05?'with a house edge of about '+pct1(he):he<=-0.05?'with a player edge of about '+pct1(-he):'about even')+', and every +1 of Hi-Lo true count moves about 0.5% toward you. The cards left give a Hi-Lo true count of '+sgn1(tc)+', so you break even at about '+sgn1(he/0.5)+'. It is a guide for learning, not a promise on any one hand.</p>';
+}
+function shoeStatsHTML(){
+  if(!cfg.showRC)return'<p class="hint">Show the count to open the card breakdown and the edge estimate.</p>';
+  return accHTML('cards','Cards seen and why the count is what it is',cfg.showCards,cfg.showCards?cardsBody():'')
+    +accHTML('edge','Who the shoe favors',cfg.showEdge,cfg.showEdge?edgeBody():'');
 }
 function renderCount(){
   const sys=SYSTEMS[cfg.system],show=cfg.showRC,dl=decksHalf();
@@ -474,6 +911,7 @@ function renderCount(){
   $('#btnToggle').textContent=show?'Hide count':'Show count';
   $('#btnCheck').disabled=busy||S.phase==='dealing';
   $('#legend').innerHTML=legendHTML();
+  $('#shoeStats').innerHTML=shoeStatsHTML();
 }
 function renderStats(){
   const p=(a,b)=>b?Math.round(a/b*100)+'%':'--';
@@ -484,6 +922,8 @@ function renderStats(){
     +'<div class="st"><span class="eyebrow">Strategy</span><b>'+p(stats.sRight,stats.sDec)+'</b><small>'+stats.sDec+' plays</small></div>';
 }
 function render(){
+  const view=(Net.role==='host'&&Net.peer)?JSON.stringify(buildView()):null;
+  $('#btnNet').classList.toggle('live',!!Net.peer);
   $('#bank').textContent=fmt(S.bankroll);
   $('#btnSettings').disabled=!(S.phase==='bet'&&!busy);
   $('#trayFill').style.width=(S.total?S.pos/S.total*100:0)+'%';
@@ -491,6 +931,8 @@ function render(){
   $('#trayInfo').textContent=cfg.decks+' deck'+(cfg.decks>1?'s':'')+' · cut card at '+Math.round(S.cut/S.total*100)+'%';
   document.documentElement.style.setProperty('--anim',Math.min(320,D()*.8)+'ms');
   renderTable();renderControls();renderCount();renderStats();
+  save();
+  if(view)netSend(view);
 }
 
 /* ---------- round flow ---------- */
@@ -499,116 +941,181 @@ async function dealDealer(up){const c=draw();c.fresh=true;S.dealer.cards.push(c)
 function revealHole(){S.dealer.hole=false;S.dealer.flip=true;seen(S.dealer.cards[1]);}
 
 async function deal(){
-  const cap=Math.min(MAX,S.bankroll);
-  if(S.phase!=='bet'||busy||S.bet<MIN||S.bet>cap)return;
+  if(S.phase!=='bet'||busy||!betCheck().ok)return;
   busy=true;
-  S.dealer={cards:[],hole:true,flip:false};S.hands=[];S.insurance=0;S.coach='';S.msgCls='';S.active=0;
-  S.lastBet=S.bet;S.phase='dealing';S.msg='';
+  S.dealer={cards:[],hole:true,flip:false};S.coach='';S.hintOpen=false;S.msgCls='';S.msgG='';S.msgClsG='';S.rnd++;S.turn={s:-1,h:0};S.insSeat=-1;
+  for(const s of S.seats){s.hands=[];s.insurance=0;s.insDone=true;}
+  S.phase='dealing';S.msg='';
   if(S.needShuffle||S.pos>=S.cut){S.msg='Shuffling…';render();await sleep(800);newShoe();}
-  S.bankroll=r2(S.bankroll-S.bet);
-  S.hands=[newHand(S.bet)];S.msg='Dealing…';render();await sleep(D()/2);
-  await dealCardTo(S.hands[0]);await dealDealer(true);await dealCardTo(S.hands[0]);await dealDealer(false);
-  if(S.dealer.cards[0].r==='A'){S.phase='insurance';S.msg='Dealer shows an ace. Insurance?';busy=false;render();return;}
+  S.rcRound=S.rc;
+  for(const s of S.seats){
+    if(human(s)&&s.bet>=MIN){spend(s,s.bet);s.hands=[newHand(s.bet)];}
+    else if(s.occupant==='bot'){s.bet=botBet(s);spend(s,s.bet);s.hands=[newHand(s.bet)];}
+  }
+  const active=S.seats.filter(s=>s.hands.length);
+  S.msg='Dealing…';render();await sleep(D()/2);
+  for(const s of active)await dealCardTo(s.hands[0]);
+  await dealDealer(true);
+  for(const s of active)await dealCardTo(s.hands[0]);
+  await dealDealer(false);
+  if(S.dealer.cards[0].r==='A'){
+    for(const s of active)s.insDone=false;
+    S.insSeat=nextIns();
+    if(S.insSeat>=0){S.phase='insurance';S.msg='Dealer shows an ace. Insurance?';busy=false;render();return;}
+    await finishIns();return;
+  }
   await peekAndPlay();
 }
-async function insure(take){
-  if(S.phase!=='insurance'||busy)return;
-  busy=true;
+/* Next seat, in seat order, that the player controls and has not answered insurance for. */
+function nextIns(){for(let i=0;i<5;i++){const s=S.seats[i];if(s.hands.length&&human(s)&&!s.insDone)return i;}return -1;}
+/* Right or wrong call on insurance, counted for the person who made it. */
+function insFeedback(take){
   const rec=recIns();stats.sDec++;if(take===rec.act)stats.sRight++;
   if(cfg.feedback){
-    S.coach=take===rec.act?'Right call on insurance: '+(take?'take it':'decline')+'.':'Better call: '+(rec.act?'take insurance':'decline insurance')+', because '+rec.why+'.';
+    S.coach=(take===rec.act?'Right call on insurance: '+(take?'take it':'decline')+'. ':'Better call: '+(rec.act?'take insurance':'decline insurance')+', because '+rec.why+'. ')+rec.reason;
     S.coachCls=take===rec.act?'good':'bad';
   }
-  if(take){const amt=r2(S.hands[0].bet/2);S.insurance=amt;S.bankroll=r2(S.bankroll-amt);}
+}
+async function insure(take,who){
+  who=who||S.me;
+  if(S.phase!=='insurance'||busy)return;
+  const s=S.seats[S.insSeat];if(!s||!human(s)||s.owner!==who)return;
+  busy=true;S.hintOpen=false;
+  if(who===S.me)insFeedback(take);
+  if(take){const amt=r2(s.hands[0].bet/2);if(funds(s)>=amt){s.insurance=amt;spend(s,amt);}}
+  s.insDone=true;
+  S.insSeat=nextIns();
+  if(S.insSeat>=0){busy=false;render();return;}
+  await finishIns();
+}
+async function finishIns(){
+  busy=true;
+  for(const s of S.seats){
+    if(!s.hands.length||s.insDone)continue;
+    s.insDone=true;
+    const amt=r2(s.hands[0].bet/2);
+    if(botIns(s)&&funds(s)>=amt){s.insurance=amt;spend(s,amt);}
+  }
   S.phase='dealing';render();await sleep(D());
   await peekAndPlay();
 }
 async function peekAndPlay(){
   const up=S.dealer.cards[0];
-  S.phase='dealing';
+  S.phase='dealing';busy=true;
   if(up.r==='A'||cardVal(up.r)===10){
     S.msg='Dealer checks for blackjack…';render();await sleep(D()*1.5);
     if(dealerBJ()){revealHole();render();await sleep(D());settleRound();return;}
   }
-  const h=S.hands[0];
-  if(isBJ(h)){S.msg='Blackjack!';h.done=true;render();await sleep(D());revealHole();render();await sleep(D());settleRound();return;}
-  S.phase='player';S.msg='Your move.';busy=false;render();
+  let naturals=0;
+  for(const s of S.seats)for(const h of s.hands)if(isBJ(h)){h.done=true;naturals++;}
+  if(naturals){S.msg='Blackjack!';render();await sleep(D());}
+  S.phase='player';nextSeat(0);
+  await advance();
 }
-function judge(kind){
-  const rec=recommend();stats.sDec++;
+function judge(s,h,kind){
+  const rec=recommend(s,h);stats.sDec++;
   const ok=rec.act===kind;if(ok)stats.sRight++;
   if(cfg.feedback){
-    S.coach=ok?'Right play: '+VERB[kind]+' on '+rec.desc+'.':'Better play: '+VERB[rec.act]+' on '+rec.desc+' ('+rec.why+').';
+    S.coach=(ok?'Right play: '+VERB[kind]+' on '+rec.desc+'. ':'Better play: '+VERB[rec.act]+' on '+rec.desc+' ('+rec.why+'). ')+rec.reason;
     S.coachCls=ok?'good':'bad';
   }else S.coach='';
 }
-async function act(kind){
+async function act(kind,who){
+  who=who||S.me;
   if(S.phase!=='player'||busy)return;
-  const a=available();if(!a[kind])return;
-  const h=S.hands[S.active];
-  busy=true;judge(kind);
+  const c=cur();if(!c||!human(c.s)||c.s.owner!==who)return;
+  const a=avail(c.s,c.h);if(!a[kind])return;
+  S.hintOpen=false;busy=true;if(who===S.me)judge(c.s,c.h,kind);
+  await play(c.s,c.h,kind);
+  await advance();
+}
+/* One decision on one hand. Shared by the player and the computer players. */
+async function play(s,h,kind){
   if(kind==='hit'){await dealCardTo(h);}
   else if(kind==='stand'){h.done=true;}
-  else if(kind==='double'){S.bankroll=r2(S.bankroll-h.bet);h.bet=r2(h.bet*2);h.doubled=true;render();await dealCardTo(h);h.done=true;}
+  else if(kind==='double'){spend(s,h.bet);h.bet=r2(h.bet*2);h.doubled=true;render();await dealCardTo(h);h.done=true;if(hv(h.cards).total>21)h.bust=true;}
   else if(kind==='surrender'){h.surrendered=true;h.done=true;}
   else if(kind==='split'){
-    S.bankroll=r2(S.bankroll-h.bet);
+    spend(s,h.bet);
     const second=newHand(h.bet);second.cards=[h.cards.pop()];
     const aces=second.cards[0].r==='A';
     h.fromSplit=second.fromSplit=true;h.splitAces=second.splitAces=aces;
-    S.hands.splice(S.active+1,0,second);render();await sleep(D());
+    s.hands.splice(s.hands.indexOf(h)+1,0,second);render();await sleep(D());
     await dealCardTo(h);
   }
-  await advance();
 }
+/* Walk the turn order until a hand the player controls needs a decision, or every seat is done. */
 async function advance(){
+  busy=true;
   for(;;){
-    const h=S.hands[S.active];
+    const c=cur();
+    if(!c){await dealerTurn();return;}
+    const s=c.s,h=c.h;
     if(!h.done){
       if(h.cards.length===1)await dealCardTo(h);
       const t=hv(h.cards).total;
       if(t>21){h.bust=true;h.done=true;}
       else if(t===21)h.done=true;
-      else if(h.splitAces&&!canSplit(h))h.done=true;
+      else if(h.splitAces&&!canSplit(s,h))h.done=true;
     }
-    if(!h.done)break;
-    if(S.active<S.hands.length-1){S.active++;render();continue;}
-    await dealerTurn();return;
+    if(h.done){nextTurn();render();continue;}
+    if(human(s))break;
+    S.msg=seatTag(S.turn.s)+' is playing.';render();await sleep(D()*1.1);
+    await play(s,h,botDecide(s,h));
   }
-  S.msg=S.hands.length>1?'Hand '+(S.active+1)+' of '+S.hands.length+'.':'Your move.';
+  S.msg=seatTag(S.turn.s)+(Net.peer?' to act.':': your move.');
   busy=false;render();
 }
 function dealerShouldHit(){const v=hv(S.dealer.cards);return v.total<17||(v.total===17&&v.soft&&!cfg.s17);}
 async function dealerTurn(){
   S.phase='dealer';S.msg='Dealer plays.';render();await sleep(D());
-  const live=S.hands.some(h=>!h.bust&&!h.surrendered&&!isBJ(h));
+  const live=S.seats.some(s=>s.hands.some(h=>!h.bust&&!h.surrendered&&!isBJ(h)));
   revealHole();render();await sleep(D()*1.4);
   if(live){while(dealerShouldHit())await dealDealer(true);}
   settleRound();
 }
 function settleRound(){
   const dBJ=dealerBJ(),dv=hv(S.dealer.cards).total,dBust=dv>21,pay=cfg.bjPay==='6:5'?1.2:1.5;
-  let total=0,insNet=0;
-  for(const h of S.hands){
-    let ret=0,res;
-    if(h.surrendered){ret=h.bet/2;res='surrender';}
-    else if(h.bust){res='bust';}
-    else if(isBJ(h)){if(dBJ){res='push';ret=h.bet;}else{res='blackjack';ret=h.bet+h.bet*pay;}}
-    else if(dBJ){res='lose';}
-    else{const pv=hv(h.cards).total;if(dBust||pv>dv){res='win';ret=h.bet*2;}else if(pv===dv){res='push';ret=h.bet;}else res='lose';}
-    ret=r2(ret);h.result=res;h.net=r2(ret-h.bet);S.bankroll=r2(S.bankroll+ret);total+=h.net;
+  /* One result per person: host (h) and guest (g). */
+  const W={h:{p:false,net:0,nat:false,ip:false},g:{p:false,net:0,nat:false,ip:false}};
+  for(const s of S.seats){
+    if(!s.hands.length)continue;
+    const w=human(s)?W[s.owner]:null;
+    let net=0;
+    for(const h of s.hands){
+      let ret=0,res;
+      const pv=hv(h.cards).total;
+      if(h.surrendered){ret=h.bet/2;res='surrender';}
+      else if(h.bust||pv>21){h.bust=true;res='bust';}
+      else if(isBJ(h)){if(dBJ){res='push';ret=h.bet;}else{res='blackjack';ret=h.bet+h.bet*pay;}}
+      else if(dBJ){res='lose';}
+      else if(dBust||pv>dv){res='win';ret=h.bet*2;}
+      else if(pv===dv){res='push';ret=h.bet;}
+      else res='lose';
+      ret=r2(ret);h.result=res;h.net=r2(ret-h.bet);spend(s,-ret);net+=h.net;
+      if(w&&res==='blackjack')w.nat=true;
+    }
+    if(s.insurance){if(dBJ){spend(s,-s.insurance*3);net+=s.insurance*2;if(w)w.ip=true;}else net-=s.insurance;}
+    if(w){w.p=true;w.net+=net;}
   }
-  if(S.insurance){if(dBJ){S.bankroll=r2(S.bankroll+S.insurance*3);insNet=S.insurance*2;}else insNet=-S.insurance;}
-  total=r2(total+insNet);
-  stats.hands++;stats.net=r2(stats.net+total);
-  if(total>0)stats.wins++;else if(total<0)stats.losses++;else stats.pushes++;
-  let msg=(dBJ?'Dealer has blackjack. ':'')+(S.hands.length===1&&S.hands[0].result==='blackjack'?'Blackjack! ':'');
-  msg+=total>0?'You win '+fmt(total)+'.':total<0?'You lose '+fmt(-total)+'.':'Push.';
-  if(S.insurance&&dBJ)msg+=' Insurance paid.';
-  S.msg=msg;S.msgCls=total>0?'win':total<0?'lose':'push';
-  if(S.pos>=S.cut){S.needShuffle=true;S.msg+=' Cut card reached, so the shoe is reshuffled next hand.';}
+  W.h.net=r2(W.h.net);W.g.net=r2(W.g.net);
+  checkCount();
+  const lead=dBJ?'Dealer has blackjack. ':dBust?'Dealer busts. ':'Dealer has '+dv+'. ';
+  const say=w=>w.p?(w.nat?'Blackjack! ':'')+(w.net>0?'You win '+fmt(w.net)+'.':w.net<0?'You lose '+fmt(-w.net)+'.':'Push.')+(w.ip?' Insurance paid.':''):'';
+  const cls=w=>w.p?(w.net>0?'win':w.net<0?'lose':'push'):'';
+  if(W.h.p){
+    stats.hands++;stats.net=r2(stats.net+W.h.net);
+    if(W.h.net>0)stats.wins++;else if(W.h.net<0)stats.losses++;else stats.pushes++;
+  }
+  let tail='';
+  if(S.pos>=S.cut){S.needShuffle=true;tail=' Cut card reached, so the shoe is reshuffled next hand.';}
   S.phase='bet';busy=false;
-  S.bet=S.bankroll>=MIN?Math.min(S.lastBet,MAX,Math.floor(S.bankroll/5)*5):0;
+  S.seats.forEach((x,i)=>{if(x.leaving)S.seats[i]=seatObj();});
+  const moves=turnover();if(moves)tail+=' '+moves;
+  S.msg=lead+say(W.h)+tail;S.msgCls=cls(W.h);
+  S.msgG=lead+say(W.g)+tail;S.msgClsG=cls(W.g);
+  S.roundNet=W;S.settled++;
+  fitBets();
   save();render();
   setTimeout(maybeQuiz,900);
 }
@@ -618,12 +1125,12 @@ let quiz={rc:0,tc:0,done:false,res:null};
 function maybeQuiz(){
   if(cfg.quiz==='off'||S.phase!=='bet'||busy)return;
   S.sinceQuiz++;
-  const due=cfg.quiz==='1'?true:cfg.quiz==='3'?S.sinceQuiz>=3:Math.random()<0.34;
+  const due=cfg.quiz==='1'?true:cfg.quiz==='3'?S.sinceQuiz>=3:rnd(100)<34;
   if(due)openQuiz();
 }
 function openQuiz(){
   if(busy)return;
-  S.sinceQuiz=0;quiz={rc:0,tc:0,done:false,res:null};
+  S.sinceQuiz=0;quiz={rc:0,tc:0,done:false,res:null,actual:S.rc,dl:decksHalf()};
   renderQuiz();$('#quizOv').hidden=false;
 }
 function stepper(f,v){
@@ -648,12 +1155,12 @@ function renderQuiz(){
   $('#quizBody').innerHTML=h;
 }
 function checkQuiz(){
-  const sys=SYSTEMS[cfg.system],actual=S.rc,diff=quiz.rc-actual,ok=diff===0;
+  const sys=SYSTEMS[cfg.system],actual=quiz.actual,diff=quiz.rc-actual,ok=diff===0;
   stats.cAsked++;
   if(ok){stats.cRight++;stats.cStreak++;stats.cBest=Math.max(stats.cBest,stats.cStreak);}else stats.cStreak=0;
   const res={ok:ok,diff:diff,actual:actual,tcShown:false};
   if(cfg.askTC&&sys.balanced){
-    res.tcShown=true;res.tcExp=actual/decksHalf();res.tcOk=Math.abs(quiz.tc-res.tcExp)<=1;
+    res.tcShown=true;res.tcExp=actual/quiz.dl;res.tcOk=Math.abs(quiz.tc-res.tcExp)<=1;
     stats.tAsked++;if(res.tcOk)stats.tRight++;
   }
   quiz.done=true;quiz.res=res;save();renderQuiz();renderStats();
@@ -681,6 +1188,10 @@ function renderSettings(){
    +fld('Decks in the shoe','<div class="stepper"><button class="btn" data-set="decks" data-val="'+(cfg.decks-1)+'" '+(cfg.decks<=1?'disabled':'')+' aria-label="Fewer decks">−</button><output>'+cfg.decks+'</output><button class="btn" data-set="decks" data-val="'+(cfg.decks+1)+'" '+(cfg.decks>=8?'disabled':'')+' aria-label="More decks">+</button></div>'
      +seg('decks',[['1',1],['2',2],['4',4],['6',6],['8',8]]),'Changing the shoe starts a fresh shuffle.')
    +'<div class="field"><label for="penRange">Penetration <output id="penOut">'+cfg.pen+'%</output></label><input id="penRange" type="range" min="50" max="90" step="5" value="'+cfg.pen+'"><p class="hint">Where the cut card sits. The shoe is reshuffled after the round that reaches it.</p></div></section>'
+   +'<section class="grp"><h3>Table</h3>'
+   +fld('Other players at start',seg('bots',[['0',0],['1',1],['2',2],['3',3],['4',4]]))
+   +fld('Your starting seat',seg('startSeat',[['1',1],['2',2],['3',3],['4',4],['5',5]]),'Seat 1 is first base and acts first. Seat 5 is third base and acts last. Changing either option resets the seats.')
+   +fld('Table turnover',seg('turnover',[['Stay','stay'],['Come and go','come']]),'Come and go lets other players leave or sit down between hands, which changes how many cards each round uses.')+'</section>'
    +'<section class="grp"><h3>Rules</h3>'
    +fld('Dealer on soft 17',seg('s17',[['Stands',true],['Hits',false]]))
    +fld('Blackjack pays',seg('bjPay',[['3 to 2','3:2'],['6 to 5','6:5']]))
@@ -689,28 +1200,37 @@ function renderSettings(){
    +fld('Surrender',seg('surrender',[['Off','off'],['Late','late']]))
    +fld('Resplit aces',seg('resplitAces',[['No',false],['Yes',true]]),'Split aces get one card each. Up to 4 hands.')+'</section>'
    +'<section class="grp"><h3>Counting</h3>'
-   +fld('System','<select id="selSys">'+Object.keys(SYSTEMS).map(k=>'<option value="'+k+'"'+(cfg.system===k?' selected':'')+'>'+SYSTEMS[k].name+'</option>').join('')+'</select>','Index plays and bet suggestions are built for Hi-Lo.')
+   +fld('System','<select id="selSys">'+Object.keys(SYSTEMS).map(k=>'<option value="'+k+'"'+(cfg.system===k?' selected':'')+'>'+SYSTEMS[k].name+(k==='hilo'?' (start here)':'')+'</option>').join('')+'</select><button class="btn small" data-act="openGuide">How counting works</button>',SYS_DESC[cfg.system]+(cfg.system==='hilo'?'':' Index plays and bet suggestions are built for Hi-Lo.'))
    +fld('Quiz me on the running count',seg('quiz',[['Off','off'],['Every hand','1'],['Every 3','3'],['Random','rand']]))
    +fld('Also ask for the true count',seg('askTC',[['No',false],['Yes',true]]),'Balanced systems only.')
    +fld('Show the count while I play',seg('showRC',[['Hidden',false],['Shown',true]]))
    +fld('Bet unit',seg('unit',[['$10',10],['$25',25],['$50',50]]),'Used for bet suggestions when the count is shown.')+'</section>'
    +'<section class="grp"><h3>Coaching</h3>'
-   +fld('Show a strategy hint before I act',seg('hint',[['Off',false],['On',true]]))
+   +fld('Always show the hint and why',seg('hint',[['Off',false],['On',true]]),'Off: tap the lightbulb during your turn when you want a hint.')
    +fld('Feedback after each decision',seg('feedback',[['On',true],['Off',false]]))
    +fld('Include Hi-Lo index plays',seg('indices',[['On',true],['Off',false]]),'Deviations from basic strategy at high or low counts.')+'</section>'
    +'<section class="grp"><h3>Pace</h3>'+fld('Dealing speed',seg('speed',[['Relaxed','relaxed'],['Casino','casino'],['Fast','fast']]))+'</section>'
-   +'<section class="grp"><h3>Session</h3><div class="row"><button class="btn" data-act="reloadBank">Reload '+fmt(START_BANK)+'</button><button class="btn" data-act="resetStats">'+(confirmReset?'Tap again to confirm':'Reset stats')+'</button></div></section>';
+   +'<section class="grp"><h3>Session</h3><button class="btn" data-act="newShoe">Shuffle a new shoe</button><p class="hint">Starts the running count over at the start value. Resetting stats or reloading chips does not reshuffle.</p><div class="row"><button class="btn" data-act="reloadBank">Reload '+fmt(START_BANK)+'</button><button class="btn" data-act="resetStats">'+(confirmReset?'Tap again to confirm':'Reset stats')+'</button></div></section>';
+  if(Net.role==='guest'){
+    const body=$('#settingsBody');
+    body.querySelectorAll('section.grp').forEach(g=>{const t=g.querySelector('h3').textContent;if(t==='Shoe'||t==='Table'||t==='Rules')g.remove();});
+    const nb=body.querySelector('[data-act="newShoe"]');if(nb){nb.nextElementSibling.remove();nb.remove();}
+    body.insertAdjacentHTML('afterbegin','<p class="sub">You are at someone else\u2019s table, so the host sets the shoe, seats and rules. Your counting, coaching and pace settings are yours.</p>');
+  }
 }
 function setCfg(k,v){
   cfg[k]=v;
-  if(k==='decks'||k==='pen'||k==='system'){newShoe();S.msg='New shoe shuffled.';S.msgCls='';}
-  if(k==='unit'&&!S.hands.length)S.bet=Math.max(MIN,v);
+  if(k==='system'&&Net.role){recomputeRC();S.msg='Counting with '+SYSTEMS[cfg.system].name+'.';S.msgCls='';}
+  else if(k==='decks'||k==='pen'||k==='system'){newShoe();S.msg='New shoe shuffled.';S.msgCls='';}
+  if(k==='bots'||k==='startSeat'){setupTable();S.msg='Seats reset.';S.msgCls='';}
   save();renderSettings();render();
 }
 $('#settingsBody').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b||b.disabled)return;
   if(b.dataset.set){setCfg(b.dataset.set,JSON.parse(b.dataset.val));return;}
-  if(b.dataset.act==='reloadBank'){S.bankroll=START_BANK;if(S.bet<MIN)S.bet=MIN;save();render();}
+  if(b.dataset.act==='openGuide'){openGuide('count');return;}
+  if(b.dataset.act==='newShoe'){newShoe();S.msg='New shoe shuffled.';S.msgCls='';S.coach='';save();renderSettings();render();return;}
+  if(b.dataset.act==='reloadBank'){cmd({t:'reload'});}
   if(b.dataset.act==='resetStats'){if(!confirmReset){confirmReset=true;renderSettings();return;}Object.assign(stats,STATS0);confirmReset=false;save();renderSettings();render();}
 });
 $('#settingsBody').addEventListener('change',e=>{if(e.target.id==='selSys')setCfg('system',e.target.value);});
@@ -723,33 +1243,511 @@ $('#settingsOv').addEventListener('click',e=>{
   if(e.target.id==='settingsOv'||(e.target.closest('[data-act="close"]')))closeSettings();
 });
 
+/* ---------- guide ---------- */
+const CODE={hit:'H',stand:'S',split:'P',surrender:'R'};
+const CODE_NAME={H:'Hit',S:'Stand',D:'Double',Ds:'Double, or stand if you cannot',P:'Split',R:'Surrender'};
+const mk=(a,b)=>({cards:[{r:String(a),s:SUITS[0]},{r:String(b),s:SUITS[3]}]});
+/* One chart cell, worked out from the same basic() the hints use, so it always matches the current rules. */
+function chartCode(h,dv){
+  const v=hv(h.cards);
+  const base={hit:true,stand:true,split:true,surrender:cfg.surrender==='late'};
+  const dbl=cfg.doubleOn!=='9-11'||(!v.soft&&v.total>=9&&v.total<=11);
+  const k=basic(h,dv,Object.assign({},base,{double:dbl}));
+  if(k==='double')return basic(h,dv,Object.assign({},base,{double:false}))==='stand'?'Ds':'D';
+  return CODE[k];
+}
+const UPS=[2,3,4,5,6,7,8,9,10,11];
+function chartTable(title,rows){
+  return'<h3>'+title+'</h3><div class="chart-wrap"><table class="chart"><thead><tr><th class="rl">You</th>'
+    +UPS.map(u=>'<th>'+(u===11?'A':u)+'</th>').join('')+'</tr></thead><tbody>'
+    +rows.map(r=>'<tr><th class="rl">'+r[0]+'</th>'+UPS.map(u=>{const c=chartCode(r[1],u);return'<td class="g-'+c+'">'+c+'</td>';}).join('')+'</tr>').join('')
+    +'</tbody></table></div>';
+}
+function strategyTab(){
+  const hard=[['5-8',mk(2,6)],['9',mk(2,7)],['10',mk(2,8)],['11',mk(2,9)],['12',mk(2,10)],['13',mk(3,10)],['14',mk(4,10)],['15',mk(5,10)],['16',mk(6,10)],['17+',mk(7,10)]];
+  const soft=[];for(let k=2;k<=9;k++)soft.push(['A,'+k,mk('A',k)]);
+  const pairs=[['A,A',mk('A','A')]];for(let k=10;k>=2;k--)pairs.push([k+','+k,mk(k,k)]);
+  const codes=['H','S','D','Ds','P'].concat(cfg.surrender==='late'?['R']:[]);
+  const rules='Built for your current rules: dealer '+(cfg.s17?'stands':'hits')+' on soft 17, '+(cfg.das?'':'no ')+'double after split, double on '+(cfg.doubleOn==='any'?'any two cards':'9 to 11 only')+', surrender '+(cfg.surrender==='late'?'allowed':'off')+', '+cfg.decks+' deck'+(cfg.decks>1?'s':'')+'. Change the rules in Settings and the chart changes with them.';
+  return'<p class="sub">Find your hand down the side and the dealer’s up card across the top. '+rules+'</p>'
+    +'<div class="legend-row">'+codes.map(c=>'<span class="lg"><i class="g-'+c+'">'+c+'</i>'+CODE_NAME[c]+'</span>').join('')+'</div>'
+    +chartTable('Hard hands (no ace, or an ace counted as 1)',hard)
+    +chartTable('Soft hands (an ace counted as 11)',soft)
+    +chartTable('Pairs',pairs)
+    +'<h3>Dealer bust chances</h3><div class="chart-wrap"><table class="chart"><thead><tr><th class="rl">Up card</th>'+UPS.map(u=>'<th>'+(u===11?'A':u)+'</th>').join('')+'</tr></thead><tbody><tr><th class="rl">Busts</th>'+UPS.map(u=>'<td class="plain">'+BUST_UP[u]+'%</td>').join('')+'</tr></tbody></table></div>'
+    +'<h3>Why the chart looks like this</h3><ul class="why-list">'
+    +'<li><b>The dealer has no choice.</b> They must hit until 17, so a 2 to 6 up card is a bust card (35 to 42%). A 7 through ace usually ends at 17 or better.</li>'
+    +'<li><b>Against 2 to 6, let them bust.</b> Stand on 12 to 16 (except 12 vs 2 and 3), because hitting risks busting first. Double and split more, since you are the favorite.</li>'
+    +'<li><b>Against 7 to ace, you must improve.</b> A 12 to 16 loses most of the time standing, so you hit even though it can bust you.</li>'
+    +'<li><b>Double when you are the favorite.</b> 11 and 10 become 21 or 20 with any ten, the most common card. 9 doubles when the dealer is weak.</li>'
+    +'<li><b>Soft hands are safe to hit.</b> The ace drops to 1 rather than busting, so you play them boldly and double against weak dealer cards.</li>'
+    +'<li><b>Splits.</b> Always split aces and 8s (16 is the worst hand). Never split 10s (20 is too good), 5s (play them as a 10) or, mostly, 4s. Small pairs split against weak dealer cards.</li></ul>';
+}
+function basicsTab(){
+  return'<h3>The goal</h3><p>Finish closer to 21 than the dealer without going over. Number cards are worth their number, J, Q and K are worth 10, and an ace is worth 1 or 11. Your first two cards that add to 21 are a blackjack, which pays '+cfg.bjPay.replace(':',' to ')+'.</p>'
+    +'<h3>Your choices</h3><ul class="why-list">'
+    +'<li><b>Hit</b> to take a card. <b>Stand</b> to keep your hand.</li>'
+    +'<li><b>Double</b> doubles your bet, gives you exactly one more card, then ends your hand.</li>'
+    +'<li><b>Split</b> a pair into two hands, each with its own bet equal to the first. Split aces get one card each.</li>'
+    +'<li><b>Surrender</b> (if on in Settings) gives up the hand for half your bet back.</li>'
+    +'<li><b>Insurance</b> is a side bet when the dealer shows an ace. It pays 2 to 1 if they have blackjack, and it is usually a bad bet.</li></ul>'
+    +'<h3>The dealer</h3><p>The dealer plays by fixed rules: hit until 17 or more, and '+(cfg.s17?'stand':'hit')+' on soft 17. They show one card and keep one face down until everyone has played.</p>'
+    +'<h3>Using this app</h3><ul class="why-list">'
+    +'<li>Tap any seat between hands to play it. Each seat you take has its own bet. Seat 1 is dealt first and the deal runs clockwise.</li>'
+    +'<li>Tap the <b>lightbulb</b> during your turn for a hint and the reason behind it.</li>'
+    +'<li>Tap <b>Show count</b> to see the running count, or keep it hidden and tap <b>Check my count</b> to test yourself.</li>'
+    +'<li>Open the <b>Strategy chart</b> and <b>Counting</b> tabs here any time.</li></ul>'
+    +'<p class="sub">This is a practice tool, not gambling advice. Counting gives a small edge at best, and casinos can ask counters to leave.</p>';
+}
+function countingTab(){
+  const sys=SYSTEMS[cfg.system];
+  const tcRows=[-4,0,2,4,6,8,10,12],decks=[1,2,3,4,5,6];
+  const tcTable='<p class="sub">Across the top: decks left in the shoe. Down the side: your running count.</p><div class="chart-wrap"><table class="chart"><thead><tr><th class="rl">Count</th>'+decks.map(d=>'<th>'+d+'</th>').join('')+'</tr></thead><tbody>'
+    +tcRows.map(rc=>'<tr><th class="rl">'+sgn(rc)+'</th>'+decks.map(d=>{const t=Math.floor(rc/d);return'<td class="plain'+(t>=2?' hot':t<=-1?' cold':'')+'">'+sgn(t)+'</td>';}).join('')+'</tr>').join('')+'</tbody></table></div>';
+  const ramp=[['+1 or lower','1 unit','Minimum bet. Play basic strategy.'],['+2','2 units',''],['+3','4 units','Take insurance.'],['+4','6 units',''],['+5 or higher','8 units','']];
+  const name=r=>r.hand==='pair10'?'10,10':'Hard '+r.t;
+  const idxRows=INDEX.map(r=>'<tr><td>'+name(r)+' vs '+(r.dv===11?'A':r.dv)+'</td><td>'+ucf(r.act)+'</td><td>'+(r.dir==='ge'?sgn(r.tc)+' or higher':'below '+sgn(r.tc))+'</td></tr>').join('');
+  return'<h3>Why counting works</h3><p>Tens and aces help you: they make blackjacks (paid '+cfg.bjPay.replace(':',' to ')+'), they bust the dealer’s stiff hands and they make your doubles stronger. Small cards help the dealer. Every card you see leaves the shoe, so by tracking which kinds have gone, you know what is left.</p>'
+    +'<h3>Hi-Lo, step by step</h3><p>Hi-Lo is the standard starter system. Give every card you see a tag and keep a running total:</p>'
+    +'<div class="tagrow"><span class="tg plus">2 3 4 5 6<b>+1</b></span><span class="tg zero">7 8 9<b>0</b></span><span class="tg minus">10 J Q K A<b>−1</b></span></div>'
+    +'<p>Small cards leaving the shoe is good news for you (more tens and aces left), so the count goes up. Tens and aces leaving is bad news, so it goes down. Example: 5, K, 3, 9, A gives +1, −1, +1, 0, −1, a running count of 0. Cards that cancel, like a 5 and a K, can be counted as a pair to go faster.</p>'
+    +'<p><b>Count every card you can see</b>, at every seat. The dealer’s face-down card counts only when it is turned over. The burn card is never counted.</p>'
+    +'<h3>Running count to true count</h3><p>A running count of +6 means a lot with 1 deck left and little with 6. Divide by the decks still in the shoe to get the <b>true count</b>. The app rounds decks left to the nearest half deck and rounds the true count down for plays and bets.</p>'
+    +tcTable+'<p class="sub">Green is a count worth betting on, red is a count to stay small on. Read the decks left from the discard tray at the top of the table.</p>'
+    +'<h3>What to do at each true count (Hi-Lo)</h3><div class="chart-wrap"><table class="chart plainchart"><thead><tr><th class="rl">True count</th><th>Bet</th><th>Also</th></tr></thead><tbody>'
+    +ramp.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('')+'</tbody></table></div>'
+    +'<p class="sub">One unit is the bet unit you pick in Settings. This is the practice ramp the bet suggestion uses, capped by the table limits. When the count is low, the shoe favors the house, so bet the minimum.</p>'
+    +'<h3>Index plays</h3><p>At some counts the best play changes from basic strategy. Here is the list the app coaches (Hi-Lo only). At every other count, use the chart.</p>'
+    +'<div class="chart-wrap"><table class="chart plainchart"><thead><tr><th class="rl">Hand</th><th>Play</th><th>When true count is</th></tr></thead><tbody>'+idxRows
+    +'<tr><td>Insurance</td><td>Take</td><td>+3 or higher</td></tr></tbody></table></div>'
+    +'<p class="sub">The reason for all of them is the same. High counts mean extra tens: stand and double more, and split tens against weak cards. Low counts mean fewer tens: the dealer busts less, so you hit more.</p>'
+    +'<h3>Other systems</h3><ul class="why-list">'
+    +Object.keys(SYSTEMS).filter(k=>k!=='hilo').map(k=>'<li><b>'+SYSTEMS[k].name+'.</b> '+SYS_DESC[k]+'</li>').join('')+'</ul>'
+    +(cfg.system==='ko'?'<p class="sub">You are using KO: do not divide. The count starts at '+sgn(baseCount())+' for '+cfg.decks+' deck'+(cfg.decks>1?'s':'')+' and you raise your bet at +4 or higher.</p>':'')
+    +'<h3>Tips</h3><ul class="why-list"><li>Keep the running count in your head and only work out the true count when you need to bet.</li>'
+    +'<li>Practice with the count hidden and use <b>Check my count</b> to test yourself.</li>'
+    +'<li>Speed and accuracy come before betting. A count you cannot keep under pressure does not help.</li></ul>';
+}
+let gTab='basics';
+function renderGuide(){
+  const tabs=[['basics','Basics'],['chart','Strategy chart'],['count','Counting']];
+  $('#guideTabs').innerHTML=tabs.map(t=>'<button type="button" aria-pressed="'+(gTab===t[0])+'" data-t="'+t[0]+'">'+t[1]+'</button>').join('');
+  $('#guideBody').innerHTML=gTab==='chart'?strategyTab():gTab==='count'?countingTab():basicsTab();
+}
+function openGuide(tab){if(tab)gTab=tab;renderGuide();$('#guideOv').hidden=false;$('#guideOv .sheet').scrollTop=0;}
+function closeGuide(){$('#guideOv').hidden=true;}
+$('#guideOv').addEventListener('click',e=>{
+  if(e.target.id==='guideOv'||e.target.closest('[data-g="close"]')){closeGuide();return;}
+  const b=e.target.closest('[data-t]');if(b){gTab=b.dataset.t;renderGuide();$('#guideOv .sheet').scrollTop=0;}
+});
+$('#btnGuide').addEventListener('click',()=>openGuide());
+
+/* ---------- play together ---------- */
+/* One phone hosts and runs the whole table: the shoe, the dealer, the computer players and the other person's money. The other phone joins
+   with a 5 character code and mirrors what the host sends. The hole card is never sent until it is turned over. Both phones keep their own
+   bankroll, stats and counting settings. The code is only used to swap connection details through a public relay (ntfy.sh). After that,
+   plays go straight from phone to phone over a WebRTC data channel. */
+const RULE_KEYS=['decks','pen','s17','bjPay','das','doubleOn','surrender','resplitAces'];
+const ICE={iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]};
+const SIG='https://ntfy.sh/';
+const CODE_CH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const Net={role:null,status:'idle',code:'',id:'',pc:null,ch:null,es:null,peer:false,ready:false,hello:false,pend:false,
+  peerId:'',err:'',note:'',draft:'',timer:0,hiSent:false,ownRules:null,lastSettled:-1};
+const makeCode=n=>{let c='';for(let i=0;i<n;i++)c+=CODE_CH[rnd(CODE_CH.length)];return c;};
+const pickKeys=(o,keys)=>{const r={};keys.forEach(k=>{r[k]=o[k];});return r;};
+const CMD_KINDS=['hit','stand','double','split','surrender'];
+
+function sigPost(m){
+  if(window.__CC_SIG)return window.__CC_SIG.post(Net.code,m);
+  return fetch(SIG+'cutcard-'+Net.code.toLowerCase(),{method:'POST',body:JSON.stringify(m)}).catch(function(){});
+}
+function sigListen(onMsg,onOpen){
+  if(window.__CC_SIG)return window.__CC_SIG.listen(Net.code,onMsg,onOpen);
+  const es=new EventSource(SIG+'cutcard-'+Net.code.toLowerCase()+'/sse?since=5m');
+  es.onopen=function(){if(onOpen)onOpen();};
+  es.onmessage=function(e){
+    try{const j=JSON.parse(e.data);if(j.event!=='message')return;const m=JSON.parse(j.message);if(m&&typeof m==='object')onMsg(m);}catch(x){}
+  };
+  return es;
+}
+function netSend(m){
+  const ch=Net.ch;
+  if(ch&&ch.readyState==='open'){try{ch.send(typeof m==='string'?m:JSON.stringify(m));}catch(e){}}
+}
+function resetPeer(){
+  const ch=Net.ch,pc=Net.pc;Net.ch=null;Net.pc=null;Net.peerId='';
+  try{if(ch)ch.close();}catch(e){}
+  try{if(pc)pc.close();}catch(e){}
+  clearTimeout(Net.timer);Net.timer=0;
+}
+function teardownAll(){
+  resetPeer();
+  if(Net.es){try{Net.es.close();}catch(e){}Net.es=null;}
+  Net.peer=false;Net.ready=false;Net.hello=false;Net.pend=false;Net.hiSent=false;
+}
+function newPC(){
+  const pc=new RTCPeerConnection(ICE);
+  pc.onconnectionstatechange=function(){
+    if(pc!==Net.pc||!Net.peer)return;
+    if(pc.connectionState==='failed'||pc.connectionState==='closed')peerGone('The connection dropped.');
+  };
+  return pc;
+}
+function gathered(pc){
+  return new Promise(function(res){
+    if(pc.iceGatheringState==='complete'){res();return;}
+    const t=setTimeout(res,4000);
+    pc.addEventListener('icegatheringstatechange',function(){if(pc.iceGatheringState==='complete'){clearTimeout(t);res();}});
+  });
+}
+function bindChannel(ch){
+  Net.ch=ch;
+  ch.onopen=function(){
+    if(ch!==Net.ch)return;
+    Net.peer=true;Net.status='connected';Net.err='';clearTimeout(Net.timer);Net.timer=0;
+    if(Net.role==='guest'){if(Net.es){try{Net.es.close();}catch(e){}Net.es=null;}netSend({t:'hello',bank:S.bankroll});}
+    else S.msg='Another player joined. Seats outlined in blue are theirs.';
+    renderNet();render();
+  };
+  ch.onmessage=function(e){if(ch===Net.ch)onNetData(e.data);};
+  ch.onclose=function(){if(ch===Net.ch)peerGone(Net.peer?'The other player left.':'The connection did not work.');};
+}
+function onNetData(d){
+  let m;try{m=JSON.parse(d);}catch(e){return;}
+  if(!m||typeof m!=='object')return;
+  if(Net.role==='guest'){if(m.t==='view')applyView(m);}
+  else if(Net.role==='host')onGuestMsg(m);
+}
+
+/* Host: wait for someone to say hi on the code's channel, then offer them a direct connection. */
+function hostStart(){
+  teardownAll();
+  Net.role='host';Net.code=makeCode(5);Net.status='waiting';Net.err='';Net.note='';
+  Net.es=sigListen(onSigHost);
+  renderNet();render();
+}
+function onSigHost(m){
+  if(m.t==='hi'&&typeof m.id==='string'&&m.id.length<40&&!Net.peer){
+    if(Net.peerId===m.id&&Net.pc)return;
+    startOffer(m.id);
+  }else if(m.t==='answer'&&m.id===Net.peerId&&Net.pc&&Net.pc.signalingState==='have-local-offer'&&typeof m.sdp==='string'){
+    Net.pc.setRemoteDescription({type:'answer',sdp:m.sdp}).catch(function(){});
+  }
+}
+async function startOffer(id){
+  resetPeer();Net.peerId=id;Net.status='connecting';Net.err='';
+  const pc=newPC();Net.pc=pc;
+  bindChannel(pc.createDataChannel('cc'));
+  Net.timer=setTimeout(function(){
+    if(Net.peer||Net.role!=='host')return;
+    resetPeer();Net.status='waiting';
+    Net.err='That connection did not work. Ask them to tap Join again. If it keeps failing, try Wi-Fi on both phones.';
+    renderNet();
+  },30000);
+  renderNet();
+  try{
+    await pc.setLocalDescription(await pc.createOffer());
+    await gathered(pc);
+    if(pc===Net.pc)sigPost({t:'offer',to:id,sdp:pc.localDescription.sdp});
+  }catch(e){if(pc===Net.pc){resetPeer();Net.status='waiting';Net.err='Could not start the connection on this device.';renderNet();}}
+}
+function stopHosting(){
+  const was=Net.peer;
+  teardownAll();
+  if(was)dropGuestSeats();
+  Net.role=null;Net.status='idle';Net.err='';
+  S.msg='You stopped hosting.';
+  renderNet();render();
+}
+
+/* Guest: say hi, answer the host's offer, then mirror whatever the host sends. */
+function joinStart(code){
+  code=String(code||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  Net.draft=code;
+  if(code.length!==5){Net.err='Enter the 5 character code from the host.';renderNet();return;}
+  if(typeof RTCPeerConnection==='undefined'){Net.err='This browser cannot connect two phones.';renderNet();return;}
+  teardownAll();
+  if(!Net.ownRules)Net.ownRules=pickKeys(cfg,RULE_KEYS);
+  Net.role='guest';Net.code=code;Net.status='connecting';Net.err='';Net.id=makeCode(14);
+  Net.es=sigListen(onSigGuest,function(){if(!Net.hiSent){Net.hiSent=true;sigPost({t:'hi',id:Net.id});}});
+  Net.timer=setTimeout(function(){if(!Net.peer)joinFail('Could not connect. Check the code, and that the host still has the Host screen open. Wi-Fi on both phones works best.');},25000);
+  renderNet();
+}
+function joinFail(msg){
+  teardownAll();
+  Net.role=null;Net.status='failed';Net.err=msg;
+  renderNet();
+}
+async function onSigGuest(m){
+  if(m.t!=='offer'||m.to!==Net.id||Net.pc||typeof m.sdp!=='string')return;
+  const pc=newPC();Net.pc=pc;
+  pc.ondatachannel=function(e){bindChannel(e.channel);};
+  try{
+    await pc.setRemoteDescription({type:'offer',sdp:m.sdp});
+    await pc.setLocalDescription(await pc.createAnswer());
+    await gathered(pc);
+    if(pc===Net.pc)sigPost({t:'answer',id:Net.id,sdp:pc.localDescription.sdp});
+  }catch(e){if(pc===Net.pc)joinFail('Could not start the connection on this device.');}
+}
+function leaveTable(){
+  teardownAll();
+  location.reload();
+}
+function peerGone(msg){
+  const was=Net.peer;
+  Net.peer=false;Net.ready=false;Net.hello=false;Net.pend=false;
+  resetPeer();
+  if(Net.role==='host'){
+    Net.status=Net.es?'waiting':'idle';Net.err=was?'':msg;
+    if(was){dropGuestSeats();S.msg='The other player left.';}
+  }else if(Net.role==='guest'){
+    Net.status='dropped';Net.err=msg;S.msg='Disconnected from the table.';busy=false;
+  }
+  renderNet();render();
+}
+/* The other player is gone. Seats still in the middle of a hand are finished by the computer so the hand can end. */
+function dropGuestSeats(){
+  S.seats.forEach(function(s){
+    if(!human(s)||s.owner!=='g')return;
+    if(S.phase==='bet'||!s.hands.length){Object.assign(s,seatObj());return;}
+    s.occupant='bot';s.owner='';s.style='book';s.base=MIN;s.leaving=true;
+  });
+  if(S.phase==='insurance'&&!busy){
+    const s=S.seats[S.insSeat];
+    if(!s||!human(s)){S.insSeat=nextIns();if(S.insSeat<0)finishIns();}
+  }else if(S.phase==='player'&&!busy){
+    const c=cur();if(c&&!human(c.s))advance();
+  }
+}
+
+/* What the guest is allowed to see. The hole card is a blank until it is turned over. */
+function buildView(){
+  const cv=function(c,hide){return hide?{h:1}:{r:c.r,s:c.s,f:c.fresh?1:0};};
+  return{t:'view',ph:S.phase,msg:S.msg,mc:S.msgCls,mg:S.msgG,mgc:S.msgClsG,rnd:S.rnd,settled:S.settled,rn:S.roundNet,busy:busy,
+    d:{c:S.dealer.cards.map(function(c,i){return cv(c,i===1&&S.dealer.hole);}),hole:S.dealer.hole,flip:S.dealer.flip},
+    seats:S.seats.map(function(s){return{o:s.occupant,w:s.owner,b:s.bet,i:s.insurance,id:s.insDone,
+      h:s.hands.map(function(h){return{c:h.cards.map(function(c){return cv(c);}),b:h.bet,dn:h.done,bu:h.bust,su:h.surrendered,fs:h.fromSplit,sa:h.splitAces,db:h.doubled,r:h.result,n:h.net};})};}),
+    turn:S.turn,ins:S.insSeat,pos:S.pos,len:S.shoe.length,tot:S.total,cut:S.cut,sn:S.seenN,bh:S.bankroll,bg:S.bankOther,
+    rules:pickKeys(cfg,RULE_KEYS)};
+}
+const recomputeRC=function(){
+  let n=baseCount();for(const r of RANKS)n+=(S.seenN[r]||0)*tag({r:r});
+  S.rc=S.rcRound=n;
+};
+function applyView(v){
+  try{
+    const first=!Net.ready;
+    if(first){S.me='g';Net.lastSettled=v.settled;}
+    RULE_KEYS.forEach(function(k){if(v.rules&&k in v.rules)cfg[k]=v.rules[k];});
+    if(v.rnd!==S.rnd){S.coach='';S.hintOpen=false;}
+    S.phase=v.ph;busy=!!v.busy;S.rnd=v.rnd;
+    S.dealer={cards:v.d.c.map(function(c){return c.h?{r:'2',s:SUITS[0]}:{r:c.r,s:c.s,fresh:!!c.f};}),hole:!!v.d.hole,flip:!!v.d.flip};
+    S.seats=v.seats.map(function(o){
+      const s=seatObj();
+      s.occupant=o.o;s.owner=o.w||'';s.bet=o.b||0;s.insurance=o.i||0;s.insDone=o.id!==false;
+      s.hands=o.h.map(function(h){return{cards:h.c.map(function(c){return{r:c.r,s:c.s,fresh:!!c.f};}),bet:h.b,done:!!h.dn,bust:!!h.bu,surrendered:!!h.su,
+        fromSplit:!!h.fs,splitAces:!!h.sa,doubled:!!h.db,result:h.r,net:h.n||0};});
+      return s;
+    });
+    S.settled=v.settled;S.turn=v.turn;S.insSeat=v.ins;S.pos=v.pos;S.shoe=new Array(v.len);S.total=v.tot;S.cut=v.cut;S.seenN=v.sn||{};
+    S.bankroll=v.bg;S.bankOther=v.bh;
+    const own=v.ph==='bet'&&v.mg;
+    S.msg=own?v.mg:v.msg;S.msgCls=own?v.mgc:v.mc;
+    recomputeRC();
+    Net.pend=false;
+    if(first){
+      Net.ready=true;
+      S.sel=S.seats.findIndex(function(s){return mine(s);});
+    }
+    if(v.settled>Net.lastSettled){
+      Net.lastSettled=v.settled;
+      const r=v.rn&&v.rn.g;
+      if(r&&r.p){
+        stats.hands++;stats.net=r2(stats.net+r.net);
+        if(r.net>0)stats.wins++;else if(r.net<0)stats.losses++;else stats.pushes++;
+      }
+      setTimeout(maybeQuiz,900);
+    }
+    render();
+    renderNet();
+  }catch(e){console.error('Bad table update',e);}
+}
+
+/* Host: commands from the other phone. Every one is checked here before it touches the table. */
+function onGuestMsg(m){
+  if(m.t==='hello'){
+    const b=Number(m.bank);
+    S.bankOther=Number.isFinite(b)&&b>=0?Math.min(r2(b),10000000):START_BANK;
+    Net.hello=true;render();return;
+  }
+  if(!Net.hello)return;
+  runCmd(m,'g');
+  render();
+}
+/* One command from one player. who is 'h' or 'g'. Shared by the buttons on this phone and by the other phone. */
+function runCmd(m,who){
+  const i=m.i,seat=Number.isInteger(i)&&i>=0&&i<5?S.seats[i]:null,bet=S.phase==='bet'&&!busy;
+  const owns=seat&&human(seat)&&seat.owner===who;
+  switch(m.t){
+    case'sit':
+      if(bet&&seat&&(owns||!human(seat))){
+        if(!owns)sit(i,who);
+        if(who===S.me){S.sel=i;S.coach='';}
+      }
+      break;
+    case'leave':if(bet&&owns){Object.assign(seat,seatObj());}break;
+    case'bet':
+      if(bet&&owns&&Number.isFinite(m.v)){seat.bet=Math.max(0,Math.min(Math.floor(m.v/5)*5,roomFor(i)));}
+      break;
+    case'reload':if(bet)reload(who);break;
+    case'deal':deal();break;
+    case'act':if(CMD_KINDS.indexOf(m.k)>=0)act(m.k,who);break;
+    case'ins':insure(!!m.take,who);break;
+  }
+  if(who===S.me)render();
+}
+/* A button on this phone. The host runs it. The guest sends it, and also does the harmless bet-phase ones right away so taps feel instant. */
+function cmd(m){
+  if(Net.role==='guest'){
+    if(!Net.ready||Net.pend)return;
+    if(m.t==='act'){
+      if(S.phase!=='player'||busy)return;
+      const c=cur();if(!c||!mine(c.s)||!avail(c.s,c.h)[m.k])return;
+      S.hintOpen=false;judge(c.s,c.h,m.k);
+    }else if(m.t==='ins'){
+      if(S.phase!=='insurance'||busy)return;
+      const s=S.seats[S.insSeat];if(!s||!mine(s))return;
+      S.hintOpen=false;insFeedback(m.take);
+    }
+    netSend(m);
+    if(m.t==='act'||m.t==='ins'){Net.pend=true;render();}
+    else if(m.t==='sit'||m.t==='leave'||m.t==='bet')runCmd(m,S.me);
+    return;
+  }
+  runCmd(m,S.me);
+}
+
+/* ---------- play together: the sheet ---------- */
+function inviteUrl(){return location.href.split('#')[0]+'#join='+Net.code;}
+function renderNet(){
+  const el=$('#netBody');if(!el)return;
+  const st=Net.status,role=Net.role,err=Net.err?'<p class="coach bad">'+esc(Net.err)+'</p>':'',note=Net.note?'<p class="coach good">'+esc(Net.note)+'</p>':'';
+  let h='';
+  if(!role){
+    h='<p class="sub">Play at the same table from two phones. One of you hosts and the other joins with a code. The cards, bets and count are shared, and the host’s phone deals. You each keep your own bankroll, stats and counting settings on your own phone.</p>'
+      +'<button class="btn primary big" data-n="host">Host a table</button>'
+      +'<div class="field"><label for="joinCode">Join with a code</label><div class="joinrow"><input id="joinCode" value="'+esc(Net.draft)+'" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="CODE"><button class="btn" data-n="join">Join</button></div></div>'
+      +err+'<p class="hint">Both phones need an internet connection. Wi-Fi works best, because some mobile networks block direct connections between phones.</p>';
+  }else if(role==='host'){
+    if(st==='connected'){
+      h='<p class="coach good">Connected. The other player is at your table.</p>'
+        +'<p class="sub">Their seats are outlined in blue. Each of you taps a seat, sets a bet and taps Deal. Your phone runs the shoe, so keep this page open.</p>'
+        +'<button class="btn big" data-n="stop">Stop hosting</button>';
+    }else{
+      h='<p class="sub">Tell them this code, or send the invite link. They tap <b>Join</b> and type it in.</p>'
+        +'<div class="codebox" aria-label="Table code">'+esc(Net.code)+'</div>'
+        +'<div class="row"><button class="btn" data-n="share">Send invite</button><button class="btn" data-n="copy">Copy code</button></div>'
+        +note+err
+        +'<p class="note">'+(st==='connecting'?'Connecting to the other phone…':'Waiting for the other player to join…')+'</p>'
+        +'<p class="hint">Keep this page open and your phone awake until they are in.</p>'
+        +'<button class="btn big" data-n="stop">Stop hosting</button>';
+    }
+  }else{
+    if(st==='connected'){
+      h='<p class="coach good">Connected to table '+esc(Net.code)+'.</p>'
+        +'<p class="sub">Tap a seat to sit, set your bet and tap Deal. The host’s rules are used for this table. Your bankroll and stats stay on your phone.</p>'
+        +'<button class="btn big" data-n="leave">Leave table</button>';
+    }else if(st==='dropped'){
+      h='<p class="coach bad">'+esc(Net.err||'Disconnected.')+'</p>'
+        +'<div class="row"><button class="btn primary" data-n="retry">Rejoin</button><button class="btn" data-n="leave">Play on my own</button></div>';
+    }else{
+      h='<p class="note">Connecting to table '+esc(Net.code)+'…</p><button class="btn big" data-n="cancel">Cancel</button>';
+    }
+  }
+  el.innerHTML=h;
+}
+function openNet(){renderNet();$('#netOv').hidden=false;}
+function closeNet(){$('#netOv').hidden=true;}
+$('#btnNet').addEventListener('click',openNet);
+$('#netOv').addEventListener('input',function(e){if(e.target.id==='joinCode'){e.target.value=e.target.value.toUpperCase();Net.draft=e.target.value;}});
+$('#netOv').addEventListener('click',function(e){
+  if(e.target.id==='netOv'||e.target.closest('[data-n="close"]')){closeNet();return;}
+  const b=e.target.closest('[data-n]');if(!b)return;
+  const a=b.dataset.n;
+  if(a==='host')hostStart();
+  else if(a==='join'){const i=$('#joinCode');joinStart(i?i.value:Net.draft);}
+  else if(a==='stop')stopHosting();
+  else if(a==='leave')leaveTable();
+  else if(a==='cancel'){teardownAll();Net.role=null;Net.status='idle';Net.err='';renderNet();}
+  else if(a==='retry')joinStart(Net.code);
+  else if(a==='copy'||a==='share'){
+    const url=inviteUrl(),text='Join my blackjack table. Code '+Net.code;
+    const done=function(msg){Net.note=msg;renderNet();};
+    if(a==='share'&&navigator.share){navigator.share({title:'Cut Card Blackjack',text:text,url:url}).catch(function(){});return;}
+    const val=a==='copy'?Net.code:url;
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(val).then(function(){done(a==='copy'?'Code copied.':'Invite link copied.');},function(){done('Could not copy. Read the code out instead.');});
+    else done('Could not copy. Read the code out instead.');
+  }
+});
+function netInit(){
+  const h=/^#join=([A-Za-z0-9]{5})$/.exec(location.hash||'');
+  if(h){
+    Net.draft=h[1].toUpperCase();
+    try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+    openNet();
+  }
+}
+
 /* ---------- table events ---------- */
 $('#btnSettings').addEventListener('click',openSettings);
+$('#shoeStats').addEventListener('click',e=>{
+  const b=e.target.closest('[data-acc]');if(!b)return;
+  const k=b.dataset.acc==='cards'?'showCards':'showEdge';cfg[k]=!cfg[k];save();render();
+});
 $('#btnToggle').addEventListener('click',()=>{cfg.showRC=!cfg.showRC;save();render();});
 $('#btnCheck').addEventListener('click',openQuiz);
+function reload(who){
+  who=who||S.me;
+  if(who===S.me)S.bankroll=START_BANK;else S.bankOther=START_BANK;
+  S.seats.forEach((s,i)=>{if(human(s)&&s.owner===who&&s.bet<MIN)s.bet=defaultBet(i);});
+  save();render();
+}
+function sit(i,who){who=who||S.me;Object.assign(S.seats[i],seatObj(),{occupant:'player',owner:who});S.seats[i].bet=defaultBet(i);}
+/* Between hands, tapping any seat makes it yours (and selects it to set the bet). Mid-hand taps do nothing. */
+function tapSeat(i){
+  if(S.phase!=='bet'||busy)return;
+  cmd({t:'sit',i:i});
+}
+$('#seats').addEventListener('click',e=>{const el=e.target.closest('[data-seat]');if(el)tapSeat(Number(el.dataset.seat));});
 $('#controls').addEventListener('click',e=>{
   const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
-  const a=b.dataset.act,cap=Math.min(MAX,S.bankroll);
-  if(a==='chip'){S.bet=Math.min(S.bet+Number(b.dataset.v),cap);render();}
-  else if(a==='clear'){S.bet=0;render();}
-  else if(a==='useSuggest'){S.bet=Math.min(Number(b.dataset.v),cap);render();}
-  else if(a==='deal')deal();
-  else if(a==='reload'){S.bankroll=START_BANK;S.bet=Math.min(Math.max(S.lastBet,MIN),MAX);save();render();}
-  else if(a==='ins-yes')insure(true);
-  else if(a==='ins-no')insure(false);
-  else act(a);
+  const a=b.dataset.act,s=S.seats[S.sel];
+  if(a==='chip')cmd({t:'bet',i:S.sel,v:s.bet+Number(b.dataset.v)});
+  else if(a==='clear')cmd({t:'bet',i:S.sel,v:0});
+  else if(a==='useSuggest')cmd({t:'bet',i:S.sel,v:Number(b.dataset.v)});
+  else if(a==='leave')cmd({t:'leave',i:S.sel});
+  else if(a==='deal')cmd({t:'deal'});
+  else if(a==='reload')cmd({t:'reload'});
+  else if(a==='ins-yes')cmd({t:'ins',take:true});
+  else if(a==='ins-no')cmd({t:'ins',take:false});
+  else if(a==='hint'){S.hintOpen=!S.hintOpen;render();}
+  else cmd({t:'act',k:a});
 });
 document.addEventListener('keydown',e=>{
+  if(!$('#netOv').hidden){if(e.key==='Escape')closeNet();return;}
+  if(!$('#guideOv').hidden){if(e.key==='Escape')closeGuide();return;}
   if(!$('#settingsOv').hidden||!$('#quizOv').hidden){if(e.key==='Escape'){if(!$('#settingsOv').hidden)closeSettings();}return;}
   const t=e.target&&e.target.tagName;if(t==='INPUT'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey)return;
   const k=e.key.toLowerCase();
-  if(S.phase==='bet'&&e.key==='Enter'&&t!=='BUTTON')deal();
-  else if(S.phase==='insurance'){if(k==='y')insure(true);else if(k==='n')insure(false);}
-  else if(S.phase==='player'){const m={h:'hit',s:'stand',d:'double',p:'split',r:'surrender'};if(m[k])act(m[k]);}
+  if(S.phase==='bet'&&e.key==='Enter'&&t!=='BUTTON')cmd({t:'deal'});
+  else if(S.phase==='insurance'){if(k==='y')cmd({t:'ins',take:true});else if(k==='n')cmd({t:'ins',take:false});}
+  else if(S.phase==='player'){const m={h:'hit',s:'stand',d:'double',p:'split',r:'surrender'};if(m[k])cmd({t:'act',k:m[k]});else if(k==='i'&&!busy){S.hintOpen=!S.hintOpen;render();}}
 });
 
-newShoe();
-if(S.bankroll>=MIN)S.bet=Math.min(Math.max(cfg.unit,MIN),Math.floor(S.bankroll/5)*5);else S.bet=0;
+if(!restoreTable()){newShoe();setupTable();}
 render();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save();});
+window.addEventListener('pagehide',save);
+netInit();
 })();
 </script>

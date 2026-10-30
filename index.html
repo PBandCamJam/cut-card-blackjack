@@ -1201,7 +1201,7 @@ function startDrill(lvl){
     DR.cards=all.slice(0,n-h);DR.held=all.slice(n-h);
   }else DR.cards=freshDecks(6).slice(0,n);
   DR.i=0;DR.guess=0;DR.last=null;DR.miss={};DR.right=0;DR.done=null;DR.wait=0;
-  DR.vals=[...new Set(Object.values(SYSTEMS[cfg.system].tags))].sort((a,b)=>b-a);
+  DR.vals=[...new Set(Object.values(SYSTEMS[cfg.system].tags))].sort((a,b)=>a-b);
   DR.phase='run';DR.t0=performance.now();
   if(DR.kind==='rc'&&DR.pace)DR.timer=setTimeout(drillStep,DR.pace);
   renderDrill();
@@ -1330,7 +1330,7 @@ function drillSetupHTML(){
     +'<p class="note">Practice the count away from the table. Counting with <b>'+sys.name+'</b>. <button class="link" data-dr="settings">Change system</button></p>'
     +fld('Drill',dseg('drillKind',[['Campaign','camp'],['Running count','rc'],['Card values','tags']]),camp?'Work through levels. Hit each benchmark '+PASS_NEED+' times in a row to move up.':tags?'One card at a time. Tap its count value. Aim for instant and right before speeding up the running count drill.':'Cards flash by. Keep the running count in your head, starting at 0, then say what it is.')
     +(camp?'':tags?fld('Cards',dseg('tagLen',[['10',10],['20',20],['Whole deck',52]]),'A whole deck tells you how long one deck takes.')
-      +fld('Buttons',dseg('tagPad',[['Two thumbs','thumbs'],['One row','row']]),'Two thumbs: left thumb for plus, right thumb for minus, and each thumb has its own 0.')
+      +fld('Buttons',dseg('tagPad',[['Two thumbs','thumbs'],['One row','row']]),'Two thumbs: left thumb for minus, right thumb for plus, and each thumb has its own 0.')
       :fld('Cards',dseg('drillLen',[['10',10],['20',20],['1 deck',52],['2 decks',104],['6 decks',312]]),'With whole decks, a few cards stay face down so the count does not just end at '+sgn(deckTotal(1))+'.')
       +fld('Cards at a time',dseg('drillPer',[['1',1],['2',2],['3',3]]),'Counting cards in pairs is how pros keep up at a real table: cancel a +1 and a −1 and move on.')
       +fld('Pace',dseg('drillPace',PACES),'Tap means you move on when you are ready. Casino dealing is around Quick.'))
@@ -1356,13 +1356,13 @@ function drillRunHTML(){
     +'<p class="msg">'+(DR.pace?'Keep the count':'Tap for the next cards')+'</p></div>'
     +'<div class="row">'+(DR.pace?'':'<button class="btn primary" data-dr="next">Next <kbd>Space</kbd></button>')+'<button class="btn ghost" data-dr="stop"'+(DR.pace?' style="grid-column:1/-1"':'')+'>Stop</button></div>';
 }
-/* Thumbs: plus values on the left, minus on the right, and a 0 under each thumb so neither has to reach the middle. */
+/* Thumbs: minus values on the left, plus on the right, and a 0 under each thumb so neither has to reach the middle. */
 function tagPadHTML(){
   const vals=DR.vals,b=(v,cls,key)=>'<button class="btn'+(cls||'')+'" data-tag="'+v+'" aria-label="Counts '+sgn(v)+'">'+sgn(v)+(key?' <kbd>'+key+'</kbd>':'')+'</button>';
   if(cfg.tagPad==='row')return'<div class="tagbtns">'+vals.map((v,i)=>b(v,'',i+1)).join('')+'</div>';
-  const pos=vals.filter(v=>v>0),neg=vals.filter(v=>v<0).sort((a,c)=>a-c),rows=Math.max(pos.length,neg.length);
+  const neg=vals.filter(v=>v<0),pos=vals.filter(v=>v>0).sort((a,c)=>c-a),rows=Math.max(pos.length,neg.length);
   let h='';
-  for(let r=0;r<rows;r++)h+=(pos[r]!==undefined?b(pos[r],' plus'):'<span></span>')+(neg[r]!==undefined?b(neg[r],' minus'):'<span></span>');
+  for(let r=0;r<rows;r++)h+=(neg[r]!==undefined?b(neg[r],' minus'):'<span></span>')+(pos[r]!==undefined?b(pos[r],' plus'):'<span></span>');
   if(vals.indexOf(0)>=0)h+=b(0,' zero')+b(0,' zero');
   return'<div class="thumbpad">'+h+'</div>';
 }

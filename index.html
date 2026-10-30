@@ -292,8 +292,21 @@ input[type=range]{accent-color:var(--brass);width:100%}
 .prog i{display:block;height:100%;background:var(--brass);width:var(--p)}
 .tagbtns{display:flex;gap:8px}
 .tagbtns .btn{flex:1;font:600 20px var(--font-mono);min-height:56px}
-.tagbtns .btn.ok{background:var(--act-hit);border-color:var(--win)}
-.tagbtns .btn.no{background:var(--act-stand);border-color:var(--lose)}
+.tagbtns .btn,.thumbpad .btn{touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+/* Stretch the card area so the answer pad sits low, where thumbs rest. */
+.drill-stage.tags{min-height:max(260px,calc(100svh - 470px))}
+.thumbpad{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.thumbpad .btn{min-height:76px;font:600 26px var(--font-mono)}
+.thumbpad .btn.plus{border-color:var(--win)}.thumbpad .btn.minus{border-color:var(--lose)}
+.thumbpad .btn.zero{background:var(--rail-2);min-height:64px}
+.thumbpad .btn:active,.tagbtns .btn:active{background:var(--brass);color:var(--ink)}
+.lastcard{margin:0;min-height:24px;font:600 16px var(--font-mono);color:var(--ivory-dim)}
+.lastcard.win{color:var(--win)}.lastcard.lose{color:var(--lose)}
+.drill-stage.tags .card{animation:pop 90ms ease-out both}
+.drill-stage.hit{box-shadow:inset 0 0 0 2px var(--win),inset 0 0 40px rgba(0,0,0,.45)}
+.drill-stage.miss{box-shadow:inset 0 0 0 2px var(--lose),inset 0 0 40px rgba(0,0,0,.45)}
+@keyframes pop{from{transform:scale(.94);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.drill-stage.tags .card{animation:none}}
 .review{display:grid;gap:4px;font:500 13px var(--font-mono)}
 .review div{display:grid;grid-template-columns:2.5em 1fr 3em 3.5em;gap:6px;padding:4px 8px;border-radius:6px;background:var(--shade)}
 .review span:nth-child(3),.review span:nth-child(4){text-align:right}
@@ -415,7 +428,7 @@ const CHIPC={5:'#a3241d',25:'#1d6b48',100:'#26262b',500:'#5b3a8c'};
 const SPEEDS={relaxed:650,casino:380,fast:150};
 const DEFAULTS={decks:6,pen:75,s17:true,bjPay:'3:2',das:true,doubleOn:'any',surrender:'off',resplitAces:false,
   system:'hilo',quiz:'3',askTC:false,showRC:false,showCards:false,showEdge:false,unit:10,hint:false,feedback:true,indices:true,speed:'casino',
-  bots:3,startSeat:3,turnover:'stay',view:'solo',mode:'solo',betHint:true,drillKind:'camp',drillLen:20,tagLen:20,drillPer:1,drillPace:1000};
+  bots:3,startSeat:3,turnover:'stay',view:'solo',mode:'solo',betHint:true,drillKind:'camp',drillLen:20,tagLen:20,tagPad:'thumbs',drillPer:1,drillPace:1000};
 /* Computer player habits. They are never labelled at the table, but each seat plays differently. None play perfectly. */
 const STYLE_KEYS=['book','cautious','nobust','mimic','hunch'];
 const STATS0={hands:0,wins:0,losses:0,pushes:0,net:0,wager:0,bj:0,busts:0,best:0,worst:0,cAsked:0,cRight:0,cStreak:0,cBest:0,tAsked:0,tRight:0,sDec:0,sRight:0};
@@ -423,7 +436,7 @@ const STATS0={hands:0,wins:0,losses:0,pushes:0,net:0,wager:0,bj:0,busts:0,best:0
 const DSTATS0={dRuns:0,dRight:0,dStreak:0,dBest:0,dCards:0,dFast:0,dDeck:0,vRuns:0,vAns:0,vRight:0,vFast:0,vDeck:0};
 const HIST_MAX=500,DHIST_MAX=300,PRESET_MAX=12;
 /* Settings a saved setup holds. Screen state (tab, open panels, drill options) is left out. */
-const PKEYS=Object.keys(DEFAULTS).filter(k=>['view','mode','showCards','showEdge','drillKind','drillLen','tagLen','drillPer','drillPace'].indexOf(k)<0);
+const PKEYS=Object.keys(DEFAULTS).filter(k=>['view','mode','showCards','showEdge','drillKind','drillLen','tagLen','tagPad','drillPer','drillPace'].indexOf(k)<0);
 const T=m=>{const o={};for(const r of RANKS)o[r]=(r==='J'||r==='Q'||r==='K')?m['10']:m[r];return o;};
 const SYSTEMS={
   hilo:{name:'Hi-Lo',balanced:true,tags:T({A:-1,2:1,3:1,4:1,5:1,6:1,7:0,8:0,9:0,10:-1})},
@@ -1187,7 +1200,8 @@ function startDrill(lvl){
     DR.decks=n/52;const all=freshDecks(DR.decks),h=1+rnd(3);
     DR.cards=all.slice(0,n-h);DR.held=all.slice(n-h);
   }else DR.cards=freshDecks(6).slice(0,n);
-  DR.i=0;DR.guess=0;DR.ans=null;DR.miss={};DR.right=0;DR.done=null;DR.wait=0;
+  DR.i=0;DR.guess=0;DR.last=null;DR.miss={};DR.right=0;DR.done=null;DR.wait=0;
+  DR.vals=[...new Set(Object.values(SYSTEMS[cfg.system].tags))].sort((a,b)=>b-a);
   DR.phase='run';DR.t0=performance.now();
   if(DR.kind==='rc'&&DR.pace)DR.timer=setTimeout(drillStep,DR.pace);
   renderDrill();
@@ -1221,17 +1235,16 @@ function drillCheck(){
   logDrill({k:'rc',n:n,dk:DR.decks,per:DR.per,pace:DR.pace,ok:ok?1:0,g:DR.guess,a:actual,ms:Math.round(ms),lv:DR.lvl>=0?DR.lvl+1:0,pass:DR.camp?(DR.camp.pass?1:0):undefined});
   save();renderDrill();
 }
+/* The next card shows the moment you answer. Right or wrong for the card you just did shows above it, so nothing waits on you. */
 function tagAnswer(v){
-  if(DR.phase!=='run'||DR.kind!=='tags'||DR.ans)return;
-  const c=DR.cards[DR.i],sys=SYSTEMS[cfg.system],ok=sys.tags[c.r]===v;
+  if(DR.phase!=='run'||DR.kind!=='tags')return;
+  const c=DR.cards[DR.i],sys=SYSTEMS[cfg.system],right=sys.tags[c.r],ok=right===v;
   dtally(o=>{o.vAns++;if(ok)o.vRight++;});
   if(ok)DR.right++;else{const k=c.r==='J'||c.r==='Q'||c.r==='K'?'10':c.r;DR.miss[k]=(DR.miss[k]||0)+1;}
-  DR.ans={v:v,ok:ok};
-  /* The pause that shows right or wrong is not your time, so it comes off the clock. */
-  const pause=ok?220:900;
-  if(DR.i===DR.cards.length-1)DR.t1=performance.now();else DR.wait+=pause;
+  DR.last={c:c,v:v,right:right,ok:ok};
+  DR.i++;
+  if(DR.i>=DR.cards.length){DR.t1=performance.now();finishTags();}
   renderDrill();
-  DR.timer=setTimeout(()=>{DR.ans=null;DR.i++;if(DR.i>=DR.cards.length)finishTags();renderDrill();},pause);
 }
 /* One line in the drill log for each finished run, lifetime and session. */
 function logDrill(e){
@@ -1317,6 +1330,7 @@ function drillSetupHTML(){
     +'<p class="note">Practice the count away from the table. Counting with <b>'+sys.name+'</b>. <button class="link" data-dr="settings">Change system</button></p>'
     +fld('Drill',dseg('drillKind',[['Campaign','camp'],['Running count','rc'],['Card values','tags']]),camp?'Work through levels. Hit each benchmark '+PASS_NEED+' times in a row to move up.':tags?'One card at a time. Tap its count value. Aim for instant and right before speeding up the running count drill.':'Cards flash by. Keep the running count in your head, starting at 0, then say what it is.')
     +(camp?'':tags?fld('Cards',dseg('tagLen',[['10',10],['20',20],['Whole deck',52]]),'A whole deck tells you how long one deck takes.')
+      +fld('Buttons',dseg('tagPad',[['Two thumbs','thumbs'],['One row','row']]),'Two thumbs: left thumb for plus, right thumb for minus, and each thumb has its own 0.')
       :fld('Cards',dseg('drillLen',[['10',10],['20',20],['1 deck',52],['2 decks',104],['6 decks',312]]),'With whole decks, a few cards stay face down so the count does not just end at '+sgn(deckTotal(1))+'.')
       +fld('Cards at a time',dseg('drillPer',[['1',1],['2',2],['3',3]]),'Counting cards in pairs is how pros keep up at a real table: cancel a +1 and a −1 and move on.')
       +fld('Pace',dseg('drillPace',PACES),'Tap means you move on when you are ready. Casino dealing is around Quick.'))
@@ -1328,12 +1342,12 @@ function drillSetupHTML(){
 function drillRunHTML(){
   const n=DR.cards.length,tag=DR.lvl>=0?'<span class="eyebrow">Level '+(DR.lvl+1)+' · '+esc(LEVELS[DR.lvl].name)+'</span>':'';
   if(DR.kind==='tags'){
-    const c=DR.cards[DR.i],vals=[...new Set(Object.values(SYSTEMS[cfg.system].tags))].sort((a,b)=>b-a),right=SYSTEMS[cfg.system].tags[c.r];
-    return'<div class="drill-stage">'+tag+'<div class="prog" style="--p:'+(DR.i/n*100)+'%"><i></i></div>'
-      +'<p class="eyebrow">Card '+(DR.i+1)+' of '+n+'</p><div class="cards">'+cardHTML(Object.assign({},c,{fresh:!DR.ans}),false,false)+'</div>'
-      +'<p class="msg '+(DR.ans?(DR.ans.ok?'win':'lose'):'')+'">'+(DR.ans?(DR.ans.ok?'Right':'It is '+sgn(right)):'What does it count?')+'</p></div>'
-      +'<div class="tagbtns">'+vals.map((v,i)=>'<button class="btn'+(DR.ans&&v===right?' ok':DR.ans&&v===DR.ans.v?' no':'')+'" data-tag="'+v+'">'+sgn(v)+' <kbd>'+(i+1)+'</kbd></button>').join('')+'</div>'
-      +'<button class="btn ghost" data-dr="stop">Stop</button>';
+    const c=DR.cards[DR.i],l=DR.last;
+    const fb=l?'<p class="lastcard '+(l.ok?'win':'lose')+'">'+(l.ok?'✓ ':'✗ ')+'<span class="'+(isRed(l.c)?'r':'')+'">'+l.c.r+l.c.s+'</span> '+(l.ok?'is '+sgn(l.right):'is '+sgn(l.right)+', not '+sgn(l.v))+'</p>'
+      :'<p class="lastcard">What does each card count?</p>';
+    return'<button class="btn small ghost" data-dr="stop">Stop</button><div class="drill-stage tags'+(l?(l.ok?' hit':' miss'):'')+'">'+tag+'<div class="prog" style="--p:'+(DR.i/n*100)+'%"><i></i></div>'
+      +'<p class="eyebrow">Card '+(DR.i+1)+' of '+n+'</p><div class="cards">'+cardHTML(c,false,false)+'</div>'+fb+'</div>'
+      +tagPadHTML();
   }
   const grp=DR.cards.slice(DR.i,DR.i+DR.per),shown=Math.min(n,DR.i+grp.length),total=n+DR.held.length;
   const where=DR.decks>1?'Deck '+Math.min(DR.decks,Math.floor(DR.i/52)+1)+' of '+DR.decks:DR.decks?'One deck':shown+' of '+n+' cards';
@@ -1341,6 +1355,16 @@ function drillRunHTML(){
     +'<p class="eyebrow">'+where+'</p><div class="cards">'+grp.map(c=>cardHTML(Object.assign({},c,{fresh:true}),false,false)).join('')+'</div>'
     +'<p class="msg">'+(DR.pace?'Keep the count':'Tap for the next cards')+'</p></div>'
     +'<div class="row">'+(DR.pace?'':'<button class="btn primary" data-dr="next">Next <kbd>Space</kbd></button>')+'<button class="btn ghost" data-dr="stop"'+(DR.pace?' style="grid-column:1/-1"':'')+'>Stop</button></div>';
+}
+/* Thumbs: plus values on the left, minus on the right, and a 0 under each thumb so neither has to reach the middle. */
+function tagPadHTML(){
+  const vals=DR.vals,b=(v,cls,key)=>'<button class="btn'+(cls||'')+'" data-tag="'+v+'" aria-label="Counts '+sgn(v)+'">'+sgn(v)+(key?' <kbd>'+key+'</kbd>':'')+'</button>';
+  if(cfg.tagPad==='row')return'<div class="tagbtns">'+vals.map((v,i)=>b(v,'',i+1)).join('')+'</div>';
+  const pos=vals.filter(v=>v>0),neg=vals.filter(v=>v<0).sort((a,c)=>a-c),rows=Math.max(pos.length,neg.length);
+  let h='';
+  for(let r=0;r<rows;r++)h+=(pos[r]!==undefined?b(pos[r],' plus'):'<span></span>')+(neg[r]!==undefined?b(neg[r],' minus'):'<span></span>');
+  if(vals.indexOf(0)>=0)h+=b(0,' zero')+b(0,' zero');
+  return'<div class="thumbpad">'+h+'</div>';
 }
 function drillAnswerHTML(){
   return'<section class="panel"><h2 class="camp-t">What is the running count?</h2><p class="sub">'+(DR.decks?lenName(DR.decks*52)+' with '+DR.held.length+' card'+(DR.held.length>1?'s':'')+' held back face down':DR.cards.length+' cards')+', '+SYSTEMS[cfg.system].name+', starting at 0.</p>'
@@ -1391,11 +1415,11 @@ $('#vDrill').addEventListener('click',e=>{
   const b=e.target.closest('[data-dset],[data-dscope],[data-dr],[data-tag],[data-dbump]');if(!b||b.disabled)return;
   if(b.dataset.dset){cfg[b.dataset.dset]=JSON.parse(b.dataset.val);confirmCamp=false;save();renderDrill();return;}
   if(b.dataset.dscope){dScope=b.dataset.dscope;dMore=false;confirmDrill=false;renderDrill();return;}
-  if(b.dataset.tag!==undefined){tagAnswer(Number(b.dataset.tag));return;}
+  if(b.dataset.tag!==undefined){if(!e.detail)tagAnswer(Number(b.dataset.tag));return;}
   if(b.dataset.dbump){DR.guess+=Number(b.dataset.dbump);$('#dGuess').value=DR.guess;return;}
   const a=b.dataset.dr;
   if(a!=='restart')confirmCamp=false;
-  if(a==='start')startDrill(-1);
+  if(a==='start'){window.scrollTo(0,0);startDrill(-1);}
   else if(a==='camp'){const i=Number(b.dataset.lvl);if(i>=0&&i<=campState().lvl&&i<LEVELS.length){window.scrollTo(0,0);startDrill(i);}}
   else if(a==='next'&&DR.phase==='run'&&!DR.pace)drillStep();
   else if(a==='stop'||a==='setup'){clearTimeout(DR.timer);DR.phase='setup';renderDrill();}
@@ -1404,6 +1428,11 @@ $('#vDrill').addEventListener('click',e=>{
   else if(a==='reset'){if(!confirmDrill){confirmDrill=true;renderDrill();return;}const k=dstats.camp;Object.assign(dstats,DSTATS0);dstats.hist=[];dstats.camp=k;confirmDrill=false;save();renderDrill();}
   else if(a==='restart'){if(!confirmCamp){confirmCamp=true;renderDrill();return;}dstats.camp={lvl:0,prog:0};confirmCamp=false;save();renderDrill();}
   else if(a==='settings')openSettings();
+});
+/* Answer on touch down, not on release, so fast tapping is never held up. */
+$('#vDrill').addEventListener('pointerdown',e=>{
+  const b=e.target.closest('[data-tag]');if(!b||e.button>0)return;
+  e.preventDefault();tagAnswer(Number(b.dataset.tag));
 });
 $('#vDrill').addEventListener('input',e=>{if(e.target.id==='dGuess')DR.guess=parseInt(e.target.value,10)||0;});
 
@@ -2330,7 +2359,7 @@ document.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
   if(cfg.view==='drill'){
     if(DR.phase==='run'&&DR.kind==='rc'&&!DR.pace&&(e.key===' '||e.key==='Enter')){e.preventDefault();drillStep();}
-    else if(DR.phase==='run'&&DR.kind==='tags'&&/^[1-9]$/.test(e.key)){const b=document.querySelectorAll('#vDrill [data-tag]')[Number(e.key)-1];if(b)tagAnswer(Number(b.dataset.tag));}
+    else if(DR.phase==='run'&&DR.kind==='tags'&&/^[1-9]$/.test(e.key)){const v=DR.vals[Number(e.key)-1];if(v!==undefined)tagAnswer(v);}
     else if(DR.phase==='answer'&&e.key==='Enter')drillCheck();
     return;
   }

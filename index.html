@@ -209,6 +209,16 @@ kbd{font:500 11px var(--font-mono);color:var(--ivory-dim);border:1px solid rgba(
 .sheet h2.ok{color:var(--win)}.sheet h2.bad{color:var(--lose)}
 .sub{margin:0;color:var(--ivory-dim);font-size:13px}
 .grps{display:grid;gap:8px}
+/* Count entry: a display per number and a phone-style pad. */
+.numdisps{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px}
+.numdisp{display:grid;gap:2px;justify-items:center;padding:10px;border-radius:12px;border:1.5px solid rgba(255,255,255,.1);background:rgba(0,0,0,.3);color:var(--ivory);cursor:pointer}
+.numdisp.on{border-color:var(--brass);box-shadow:0 0 0 3px var(--glow)}
+.numdisp b{font:600 34px/1.1 var(--font-mono);font-variant-numeric:tabular-nums;min-height:38px}
+.numdisp .dim{color:var(--ivory-dim);opacity:.5}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.numpad .btn{min-height:54px;font:600 22px var(--font-mono);user-select:none;-webkit-user-select:none}
+.numpad .btn:active{background:var(--brass);color:var(--ink)}
+.numpad [data-key="±"],.numpad [data-key="⌫"]{font-size:18px;background:var(--rail-2)}
 /* The shoe seen from the side: card edges, the part that moves to the back, your red cut card and the dealer's cut card. */
 .cutstack{position:relative;height:96px;margin:18px 6px 2px;border-radius:4px;cursor:ew-resize;touch-action:none;
   background:repeating-linear-gradient(90deg,var(--ivory) 0 2px,var(--ivory-dim) 2px 3px);box-shadow:0 6px 14px rgba(0,0,0,.5),inset 0 -10px 18px rgba(0,0,0,.18)}
@@ -1277,7 +1287,7 @@ function startDrill(lvl){
     DR.decks=n/52;const all=freshDecks(DR.decks),h=1+rnd(3);
     DR.cards=all.slice(0,n-h);DR.held=all.slice(n-h);
   }else DR.cards=freshDecks(6).slice(0,n);
-  DR.i=0;DR.guess=0;DR.last=null;DR.miss={};DR.right=0;DR.done=null;DR.wait=0;
+  DR.i=0;DR.guess=0;DR.gS='';DR.last=null;DR.miss={};DR.right=0;DR.done=null;DR.wait=0;
   DR.vals=[...new Set(Object.values(SYSTEMS[cfg.system].tags))].sort((a,b)=>a-b);
   DR.phase='run';DR.t0=performance.now();
   if(DR.kind==='rc'&&DR.pace)DR.timer=setTimeout(drillStep,DR.pace);
@@ -1445,7 +1455,7 @@ function tagPadHTML(){
 }
 function drillAnswerHTML(){
   return'<section class="panel"><h2 class="camp-t">What is the running count?</h2><p class="sub">'+(DR.decks?lenName(DR.decks*52)+' with '+DR.held.length+' card'+(DR.held.length>1?'s':'')+' held back face down':DR.cards.length+' cards')+', '+SYSTEMS[cfg.system].name+', starting at 0.</p>'
-    +'<div class="stepper"><button class="btn" data-dbump="-5">−5</button><button class="btn" data-dbump="-1">−1</button><input id="dGuess" type="number" step="1" value="'+DR.guess+'" aria-label="Your running count"><button class="btn" data-dbump="1">+1</button><button class="btn" data-dbump="5">+5</button></div>'
+    +'<div class="numdisps">'+numDisp('dg','Running count',DR.gS||'',true)+'</div>'+numPadHTML()
     +'<button class="btn primary big" data-dr="check">Check</button></section>';
 }
 /* Campaign outcome for the run just finished. */
@@ -1486,14 +1496,14 @@ function drillResultHTML(){
 function renderDrill(){
   const el=$('#vDrill');
   el.innerHTML=DR.phase==='run'?drillRunHTML():DR.phase==='answer'?drillAnswerHTML():DR.phase==='result'?drillResultHTML():drillSetupHTML();
-  if(DR.phase==='answer'){const i=$('#dGuess');if(i&&matchMedia('(hover:hover)').matches)i.focus();}
+
 }
 $('#vDrill').addEventListener('click',e=>{
-  const b=e.target.closest('[data-dset],[data-dscope],[data-dr],[data-tag],[data-dbump]');if(!b||b.disabled)return;
+  const b=e.target.closest('[data-dset],[data-dscope],[data-dr],[data-tag],[data-key]');if(!b||b.disabled)return;
   if(b.dataset.dset){cfg[b.dataset.dset]=JSON.parse(b.dataset.val);confirmCamp=false;save();renderDrill();return;}
   if(b.dataset.dscope){dScope=b.dataset.dscope;dMore=false;confirmDrill=false;renderDrill();return;}
   if(b.dataset.tag!==undefined){if(!e.detail)tagAnswer(Number(b.dataset.tag));return;}
-  if(b.dataset.dbump){DR.guess+=Number(b.dataset.dbump);$('#dGuess').value=DR.guess;return;}
+  if(b.dataset.key){drillKey(b.dataset.key);return;}
   const a=b.dataset.dr;
   if(a!=='restart')confirmCamp=false;
   if(a==='start'){window.scrollTo(0,0);startDrill(-1);}
@@ -1511,7 +1521,11 @@ $('#vDrill').addEventListener('pointerdown',e=>{
   const b=e.target.closest('[data-tag]');if(!b||e.button>0)return;
   e.preventDefault();tagAnswer(Number(b.dataset.tag));
 });
-$('#vDrill').addEventListener('input',e=>{if(e.target.id==='dGuess')DR.guess=parseInt(e.target.value,10)||0;});
+function drillKey(k){
+  if(DR.phase!=='answer')return;
+  DR.gS=padKey(DR.gS||'',k);DR.guess=padVal(DR.gS);
+  const d=$('#vDrill .numdisp b');if(d)d.innerHTML=padShow(DR.gS);
+}
 
 /* ---------- views ---------- */
 /* Solo and Together each have their own table. Switching puts one away (shoe, seats, bankroll) and brings the other out. */
@@ -1820,6 +1834,21 @@ $('#cutOv').addEventListener('click',e=>{
 });
 
 /* ---------- count quiz ---------- */
+/* In-app number pad for counts, so the phone keyboard never opens. Entries are strings like '', '-', '-12'. */
+const PAD_KEYS=['1','2','3','4','5','6','7','8','9','±','0','⌫'];
+function padKey(s,k){
+  const neg=s.charAt(0)==='-',d=neg?s.slice(1):s;
+  if(k==='±')return neg?d:'-'+d;
+  if(k==='⌫')return s.slice(0,-1);
+  if(!/^[0-9]$/.test(k)||d.length>=3)return s;
+  return(neg?'-':'')+(d==='0'?k:d+k);
+}
+const padVal=s=>parseInt(s,10)||0;
+const padShow=s=>s===''?'<span class="dim">0</span>':s==='-'?'−<span class="dim">0</span>':s.replace('-','−');
+function numDisp(field,label,s,on){return'<button type="button" class="numdisp'+(on?' on':'')+'" data-field="'+field+'" aria-label="'+label+': '+(s===''?'0':s)+'"><span class="eyebrow">'+label+'</span><b>'+padShow(s)+'</b></button>';}
+function numPadHTML(){return'<div class="numpad">'+PAD_KEYS.map(k=>'<button type="button" class="btn" data-key="'+k+'" aria-label="'+(k==='±'?'Plus or minus':k==='⌫'?'Delete':k)+'">'+(k==='±'?'+/−':k)+'</button>').join('')+'</div>';}
+/* Typing on a hardware keyboard: digits, minus, backspace. Returns the key name for padKey, or ''. */
+const padFromKey=e=>/^[0-9]$/.test(e.key)?e.key:(e.key==='-'||e.key==='+')?'±':e.key==='Backspace'?'⌫':'';
 let quiz={rc:0,tc:0,done:false,res:null};
 function maybeQuiz(){
   if(cfg.quiz==='off'||S.phase!=='bet'||busy)return;
@@ -1829,19 +1858,16 @@ function maybeQuiz(){
 }
 function openQuiz(){
   if(busy)return;
-  S.sinceQuiz=0;quiz={rc:0,tc:0,done:false,res:null,actual:S.rc,dl:decksHalf()};
+  S.sinceQuiz=0;quiz={rc:0,tc:0,rcS:'',tcS:'',f:'rc',done:false,res:null,actual:S.rc,dl:decksHalf()};
   renderQuiz();$('#quizOv').hidden=false;
-}
-function stepper(f,v){
-  return'<div class="stepper"><button class="btn" data-bump="'+f+':-5">−5</button><button class="btn" data-bump="'+f+':-1">−1</button>'
-    +'<input id="q-'+f+'" type="number" step="1" value="'+v+'" aria-label="'+f+'"><button class="btn" data-bump="'+f+':1">+1</button><button class="btn" data-bump="'+f+':5">+5</button></div>';
 }
 function renderQuiz(){
   const sys=SYSTEMS[cfg.system],askTC=cfg.askTC&&sys.balanced;let h;
   if(!quiz.done){
     h='<h2>What is the count?</h2><p class="sub">'+sys.name+', counting every card you have seen since the shuffle.'+(sys.balanced?'':' This system starts at '+sgn(baseCount())+'.')+'</p>'
-      +'<div class="field"><label>Running count</label>'+stepper('rc',quiz.rc)+'</div>'
-      +(askTC?'<div class="field"><label>True count (whole number, within 1 counts)</label>'+stepper('tc',quiz.tc)+'</div>':'')
+      +'<div class="numdisps">'+numDisp('rc','Running count',quiz.rcS,quiz.f==='rc')+(askTC?numDisp('tc','True count',quiz.tcS,quiz.f==='tc'):'')+'</div>'
+      +(askTC?'<p class="hint">Tap a box to choose which one you are typing. True count is a whole number, and within 1 counts as right.</p>':'')
+      +numPadHTML()
       +'<div class="row"><button class="btn ghost" data-q="skip">Skip</button><button class="btn primary" data-q="check">Check</button></div>';
   }else{
     const r=quiz.res;
@@ -1853,7 +1879,12 @@ function renderQuiz(){
   }
   $('#quizBody').innerHTML=h;
 }
+function quizKey(k){
+  const f=quiz.f,key=f+'S';quiz[key]=padKey(quiz[key],k);quiz[f]=padVal(quiz[key]);
+  const d=$('#quizBody .numdisp[data-field="'+f+'"] b');if(d)d.innerHTML=padShow(quiz[key]);
+}
 function checkQuiz(){
+  if(quiz.done)return;
   const sys=SYSTEMS[cfg.system],actual=quiz.actual,diff=quiz.rc-actual,ok=diff===0;
   tally(o=>{o.cAsked++;if(ok){o.cRight++;o.cStreak++;o.cBest=Math.max(o.cBest,o.cStreak);}else o.cStreak=0;});
   const res={ok:ok,diff:diff,actual:actual,tcShown:false};
@@ -1866,12 +1897,9 @@ function checkQuiz(){
 function closeQuiz(){$('#quizOv').hidden=true;render();}
 $('#quizOv').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.bump){const p=b.dataset.bump.split(':');quiz[p[0]]+=Number(p[1]);const i=$('#q-'+p[0]);if(i)i.value=quiz[p[0]];return;}
+  if(b.dataset.key){quizKey(b.dataset.key);return;}
+  if(b.dataset.field){quiz.f=b.dataset.field;renderQuiz();return;}
   if(b.dataset.q==='check')checkQuiz();else if(b.dataset.q==='skip'||b.dataset.q==='close')closeQuiz();
-});
-$('#quizOv').addEventListener('input',e=>{
-  if(e.target.id==='q-rc')quiz.rc=parseInt(e.target.value,10)||0;
-  if(e.target.id==='q-tc')quiz.tc=parseInt(e.target.value,10)||0;
 });
 
 /* ---------- settings ---------- */
@@ -2496,14 +2524,21 @@ $('#controls').addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{
   if(!$('#cutOv').hidden){if(e.key==='Enter'&&cutting)finishCut(cutAt);return;}
   if(!$('#guideOv').hidden){if(e.key==='Escape')closeGuide();return;}
-  if(!$('#settingsOv').hidden||!$('#quizOv').hidden){if(e.key==='Escape'){if(!$('#settingsOv').hidden)closeSettings();}return;}
+  if(!$('#quizOv').hidden){
+    if(!quiz.done){const k=padFromKey(e);if(k){e.preventDefault();quizKey(k);return;}
+      if(e.key==='Tab'&&cfg.askTC&&SYSTEMS[cfg.system].balanced){e.preventDefault();quiz.f=quiz.f==='rc'?'tc':'rc';renderQuiz();return;}}
+    if(e.key==='Enter'){e.preventDefault();if(quiz.done)closeQuiz();else checkQuiz();}
+    else if(e.key==='Escape')closeQuiz();
+    return;
+  }
+  if(!$('#settingsOv').hidden){if(e.key==='Escape')closeSettings();return;}
   const t=e.target&&e.target.tagName;if(e.metaKey||e.ctrlKey||e.altKey)return;
-  if((t==='INPUT'||t==='SELECT')&&!(cfg.view==='drill'&&DR.phase==='answer'))return;
+  if(t==='INPUT'||t==='SELECT')return;
   const k=e.key.toLowerCase();
   if(cfg.view==='drill'){
     if(DR.phase==='run'&&DR.kind==='rc'&&!DR.pace&&(e.key===' '||e.key==='Enter')){e.preventDefault();drillStep();}
     else if(DR.phase==='run'&&DR.kind==='tags'&&/^[1-9]$/.test(e.key)){const v=DR.vals[Number(e.key)-1];if(v!==undefined)tagAnswer(v);}
-    else if(DR.phase==='answer'&&e.key==='Enter')drillCheck();
+    else if(DR.phase==='answer'){const pk=padFromKey(e);if(pk){e.preventDefault();drillKey(pk);}else if(e.key==='Enter'){e.preventDefault();drillCheck();}}
     return;
   }
   if(cfg.view!=='solo'&&cfg.view!=='tog')return;

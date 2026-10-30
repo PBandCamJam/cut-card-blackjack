@@ -777,11 +777,12 @@ function seatHTML(s,i){
     +'<button class="chipspot" aria-label="'+esc(label)+'">'+spot+'</button><div class="seat-name">'+(i+1)+'</div></div>';
 }
 function suggestHTML(){
-  if(!cfg.showRC)return'';
+  const open=cfg.showRC||cfg.hint||S.hintOpen;
+  if(!open)return'';
   if(cfg.system==='hilo'){
     const tc=Math.floor(S.rc/decksHalf()),u=tc<=1?1:tc===2?2:tc===3?4:tc===4?6:8;
     const amt=Math.max(MIN,Math.min(u*cfg.unit,roomFor(S.sel)));
-    return'<button class="suggest" data-act="useSuggest" data-v="'+amt+'">Count suggests '+u+' unit'+(u>1?'s':'')+': bet '+fmt(amt)+'</button>';
+    return'<button class="suggest" data-act="useSuggest" data-v="'+amt+'">Count suggests '+u+' unit'+(u>1?'s':'')+': bet '+fmt(amt)+'</button><p class="note">Why: the true count is '+(tc>=0?'+':'')+tc+', so the ramp says '+u+' unit'+(u>1?'s':'')+'. A higher count means the shoe is richer in tens and aces.</p>';
   }
   if(cfg.system==='ko')return'<p class="note">'+(S.rc>=4?'At or above the pivot (+4): raise your bet.':'Below the pivot (+4): bet the minimum.')+'</p>';
   return'';
@@ -803,7 +804,7 @@ function renderControls(){
       const room=roomFor(S.sel);
       top='<div class="bet-top"><div><span class="eyebrow">Seat '+(S.sel+1)+' bet</span><b class="bet-amt">'+fmt(s.bet)+'</b></div><span class="limits">Table '+fmt(MIN)+' to '+fmt(MAX)+'</span></div>'
         +'<div class="chips">'+[5,25,100,500].map(v=>'<button class="chip" style="--c:'+CHIPC[v]+'" data-act="chip" data-v="'+v+'" '+(s.bet+v>room?'disabled':'')+' aria-label="Add '+v+' dollars to seat '+(S.sel+1)+'">'+v+'</button>').join('')
-        +'<button class="btn ghost" data-act="clear">Clear</button></div>'+suggestHTML()
+        +'<button class="btn ghost" data-act="clear">Clear</button>'+hintBtn(true)+'</div>'+suggestHTML()
         +'<button class="btn small" data-act="leave">Leave seat</button>';
     }else{
       top='<p class="note">Tap any seat to play it. Every seat you tap is yours, and each has its own bet. Seat 1 is dealt first.</p>';

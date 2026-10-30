@@ -1183,6 +1183,14 @@ const lenName=n=>n%52===0?(n===52?'1 deck':n/52+' decks'):n+' cards';
 function freshDecks(d){const c=[];for(let i=0;i<d;i++)for(const s of SUITS)for(const r of RANKS)c.push({r:r,s:s});return shuffle(c);}
 /* What whole decks add up to with this system: 0 for balanced ones, +4 a deck for KO. */
 const deckTotal=d=>{const t=SYSTEMS[cfg.system].tags;return RANKS.reduce((a,r)=>a+t[r]*4,0)*d;};
+/* Drill length: 10 or 20 cards, or whole decks picked the same way as decks in Settings (stepper plus 1, 2, 4, 6, 8). */
+function lenPicker(key,hint){
+  const v=cfg[key],dk=v%52===0?v/52:0;
+  let h=fld('Cards','<div class="seg" role="group">'+[['10',10],['20',20],['Whole decks',dk?v:52]].map(o=>'<button type="button" aria-pressed="'+(o[0]==='Whole decks'?!!dk:v===o[1])+'" data-dset="'+key+'" data-val="'+o[1]+'">'+o[0]+'</button>').join('')+'</div>',dk?'':hint);
+  if(dk)h+=fld('Decks','<div class="stepper"><button class="btn" data-dset="'+key+'" data-val="'+(v-52)+'" '+(dk<=1?'disabled':'')+' aria-label="Fewer decks">−</button><output>'+dk+'</output><button class="btn" data-dset="'+key+'" data-val="'+(v+52)+'" '+(dk>=8?'disabled':'')+' aria-label="More decks">+</button></div>'
+    +dseg(key,[['1',52],['2',104],['4',208],['6',312],['8',416]]),hint);
+  return h;
+}
 function dseg(key,opts){return'<div class="seg" role="group">'+opts.map(o=>'<button type="button" aria-pressed="'+(cfg[key]===o[1])+'" data-dset="'+key+'" data-val="'+esc(JSON.stringify(o[1]))+'">'+o[0]+'</button>').join('')+'</div>';}
 function stopDrill(){clearTimeout(DR.timer);DR.timer=0;if(DR.phase==='run')DR.phase='setup';}
 /* lvl: a campaign level index, or -1 for free practice with the drill settings. */
@@ -1195,7 +1203,7 @@ function startDrill(lvl){
   DR.per=DR.kind==='tags'?1:L?L.per:cfg.drillPer;
   DR.pace=DR.kind==='tags'?0:L?L.pace:cfg.drillPace;
   DR.held=[];DR.decks=0;
-  if(DR.kind==='tags')DR.cards=freshDecks(1).slice(0,n);
+  if(DR.kind==='tags')DR.cards=n%52===0?freshDecks(n/52):freshDecks(1).slice(0,n);
   else if(n%52===0){
     /* Whole decks always add up to the same total, so a few cards stay face down to keep the answer honest. */
     DR.decks=n/52;const all=freshDecks(DR.decks),h=1+rnd(3);
@@ -1256,7 +1264,7 @@ function logDrill(e){
 function finishTags(){
   DR.phase='result';
   const n=DR.cards.length,ms=Math.max(1,DR.t1-DR.t0-DR.wait)/n,misses=n-DR.right,perfect=!misses;
-  dtally(o=>{o.vRuns++;if(perfect&&(!o.vFast||ms<o.vFast))o.vFast=Math.round(ms);if(perfect&&n===52&&(!o.vDeck||ms<o.vDeck))o.vDeck=Math.round(ms);});
+  dtally(o=>{o.vRuns++;if(perfect&&(!o.vFast||ms<o.vFast))o.vFast=Math.round(ms);if(perfect&&n%52===0&&(!o.vDeck||ms<o.vDeck))o.vDeck=Math.round(ms);});
   const L=LEVELS[DR.lvl];campResult(!!L&&misses<=L.maxMiss&&(!L.deck||deckSecs(ms)<=L.deck));
   DR.done={ms:ms,secs:ms*n/1000};
   logDrill({k:'tags',n:n,r:DR.right,ms:Math.round(ms),miss:Object.keys(DR.miss).join(' '),lv:DR.lvl>=0?DR.lvl+1:0,pass:DR.camp?(DR.camp.pass?1:0):undefined});
@@ -1304,7 +1312,7 @@ function drillStatsHTML(){
     +'</div><p class="sub">Card values</p><div class="tiles">'
     +tile('Accuracy',pc(o.vRight,o.vAns),o.vAns+' card'+(o.vAns===1?'':'s'))
     +tile('Best pace',dSec(o.vFast),'per deck, no misses')
-    +tile('Best deck',dSec(o.vDeck),'whole deck, no misses')
+    +tile('Best deck',dSec(o.vDeck),'whole decks, no misses')
     +'</div><h3 class="eyebrow">Pace, running count</h3>'+paceChartHTML(rc.slice(-60),'running count')
     +'<h3 class="eyebrow">Pace, card values</h3>'+paceChartHTML(tg.slice(-60),'card values')
     +'<h3 class="eyebrow">Runs</h3>'
@@ -1330,9 +1338,9 @@ function drillSetupHTML(){
   return'<section class="panel"><h3 class="eyebrow">Count drill</h3>'
     +'<p class="note">Practice the count away from the table. Counting with <b>'+sys.name+'</b>. <button class="link" data-dr="settings">Change system</button></p>'
     +fld('Drill',dseg('drillKind',[['Campaign','camp'],['Running count','rc'],['Card values','tags']]),camp?'Work through levels. Hit each benchmark '+PASS_NEED+' times in a row to move up.':tags?'One card at a time. Tap its count value. Aim for instant and right before speeding up the running count drill.':'Cards flash by. Keep the running count in your head, starting at 0, then say what it is.')
-    +(camp?'':tags?fld('Cards',dseg('tagLen',[['10',10],['20',20],['Whole deck',52]]),'A whole deck tells you how long one deck takes.')
+    +(camp?'':tags?lenPicker('tagLen','Whole decks tell you how long a deck takes.')
       +fld('Buttons',dseg('tagPad',[['Two thumbs','thumbs'],['One row','row']]),'Two thumbs: left thumb for minus, right thumb for plus, and each thumb has its own 0.')
-      :fld('Cards',dseg('drillLen',[['10',10],['20',20],['1 deck',52],['2 decks',104],['6 decks',312]]),'With whole decks, a few cards stay face down so the count does not just end at '+sgn(deckTotal(1))+'.')
+      :lenPicker('drillLen','With whole decks, a few cards stay face down so the count does not just end at '+sgn(deckTotal(1))+' a deck.')
       +fld('Cards at a time',dseg('drillPer',[['1',1],['2',2],['3',3]]),'Counting cards in pairs is how pros keep up at a real table: cancel a +1 and a −1 and move on.')
       +fld('Pace',dseg('drillPace',PACES),'Tap means you move on when you are ready. Casino dealing is around Quick.'))
     +(camp?'':'<button class="btn primary big" data-dr="start">Start</button>')+'</section>'

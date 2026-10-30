@@ -99,6 +99,12 @@ h1{margin:0;font:700 28px/1 var(--font-display);letter-spacing:.02em;white-space
 .chipspot{width:min(44px,100%);aspect-ratio:1;border-radius:50%;border:2px dashed var(--brass-dim);background:transparent;color:var(--brass);font:600 11px var(--font-mono);display:grid;place-items:center;padding:0;cursor:pointer;font-variant-numeric:tabular-nums}
 .seat.player .chipspot{border-style:solid;border-color:var(--brass);background:var(--shade)}
 .seat.bot .chipspot{border-style:solid;border-color:var(--seat-line);color:var(--ivory-dim)}
+.focus{display:grid;justify-items:center;gap:6px;margin:0 0 14px;padding:10px 8px 12px;border-radius:14px;background:var(--shade);box-shadow:inset 0 0 0 1.5px var(--brass-dim)}
+.focus[hidden]{display:none}
+.focus .zone-label{margin:0;color:var(--ivory)}
+.focus .cards{--cw:clamp(60px,19vw,84px);min-height:calc(var(--cw)*1.42)}
+.focus .pill{font-size:14px;padding:4px 10px}
+.focus.other{box-shadow:inset 0 0 0 1.5px var(--friend)}
 .seat.other .chipspot{border-style:solid;border-color:var(--friend);color:var(--friend);background:var(--shade)}
 .seat.other .seat-name{color:var(--friend)}
 .icon-btn.live{position:relative}
@@ -272,6 +278,7 @@ input[type=range]{accent-color:var(--brass);width:100%}
       <text><textPath href="#arc2" startOffset="50%" text-anchor="middle" id="arcT2"></textPath></text>
     </svg>
     <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    <div class="focus" id="focus" hidden></div>
     <div class="seats" id="seats"></div>
   </section>
 
@@ -736,6 +743,16 @@ function renderTable(){
   $('#arcT2').textContent='Dealer '+(cfg.s17?'stands':'hits')+' on soft 17';
   const m=$('#msg');m.textContent=S.msg;m.className='msg '+(S.msgCls||'');
   $('#seats').innerHTML=S.seats.map(seatHTML).join('');
+  renderFocus();
+}
+/* The hand being played, drawn big in the middle so it is easy to read on a phone. */
+function renderFocus(){
+  const el=$('#focus'),c=(S.phase==='player')?cur():(S.phase==='insurance'&&S.seats[S.insSeat]&&S.seats[S.insSeat].hands.length?{s:S.seats[S.insSeat],h:S.seats[S.insSeat].hands[0]}:null);
+  if(!c||!c.h.cards.length){el.hidden=true;el.innerHTML='';return;}
+  const i=S.seats.indexOf(c.s),n=c.s.hands.length,j=c.s.hands.indexOf(c.h),me=mine(c.s);
+  el.hidden=false;el.className='focus'+(human(c.s)&&!me?' other':'');
+  el.innerHTML='<div class="zone-label">'+(me?'Your turn, ':'')+'Seat '+(i+1)+(n>1?', hand '+(j+1)+' of '+n:'')+' <span class="pill">'+(isBJ(c.h)?'Blackjack':totalTxt(c.h))+'</span></div>'
+    +'<div class="cards">'+c.h.cards.map(k=>cardHTML(k,false,false)).join('')+'</div>';
 }
 function seatHTML(s,i){
   const turn=(S.phase==='player'&&S.turn.s===i)||(S.phase==='insurance'&&S.insSeat===i);

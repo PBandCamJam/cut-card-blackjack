@@ -29,3 +29,9 @@ Single-file app: `index.html` (CSS, markup, one IIFE script). Keep it dependency
 - Each phone keeps its own bankroll, stats, counting system and coaching settings. The guest takes the host's rules (`RULE_KEYS`) in memory only, and `save()` writes the guest's own rules back. The guest's running count is recomputed from `seenN` with the guest's own system.
 - If the other person drops mid-hand, `dropGuestSeats()` hands their seats to the computer ('book' style, `leaving`) so the hand can finish, and they are cleared at settlement.
 - Test hook: `window.__CC_SIG` can replace the ntfy.sh relay.
+
+## Views, stats and drills
+- Three tabs share one page: Play (`#vPlay`), Count drill (`#vDrill`) and Stats (`#vStats`). `setView()` switches them and keeps the choice in `cfg.view`.
+- `stats` is lifetime and saved. `sess` has the same shape, lives in memory and starts over when the app opens. Change both through `tally(fn)`.
+- `recordRound()` adds one entry per person per round to `stats.hist` (capped at `HIST_MAX`) and `sessHist`. The count at the deal comes from `S.start` via `startCount()`, using this phone's own system, so the guest gets it from `roundNet.st`.
+- The drills use their own six-deck cards from `shuffle()` and never touch the table shoe, `S.rc` or `S.seenN`. The running count drill starts at 0 for every system.

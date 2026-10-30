@@ -209,6 +209,17 @@ kbd{font:500 11px var(--font-mono);color:var(--ivory-dim);border:1px solid rgba(
 .sheet h2.ok{color:var(--win)}.sheet h2.bad{color:var(--lose)}
 .sub{margin:0;color:var(--ivory-dim);font-size:13px}
 .grps{display:grid;gap:8px}
+/* The shoe seen from the side: card edges, the part that moves to the back, your red cut card and the dealer's cut card. */
+.cutstack{position:relative;height:96px;margin:28px 6px 2px;border-radius:4px;cursor:ew-resize;touch-action:none;
+  background:repeating-linear-gradient(90deg,var(--ivory) 0 2px,var(--ivory-dim) 2px 3px);box-shadow:0 6px 14px rgba(0,0,0,.5),inset 0 -10px 18px rgba(0,0,0,.18)}
+.cs-back{position:absolute;inset:0 auto 0 0;background:rgba(203,167,80,.28);display:grid;place-items:center;overflow:hidden;border-radius:4px 0 0 4px}
+.cs-back span{font:600 11px var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
+.cs-card{position:absolute;top:-12px;bottom:-12px;width:10px;border-radius:2px;background:var(--suit-red);box-shadow:0 0 0 2px var(--ivory),0 4px 10px rgba(0,0,0,.6)}
+.cs-card::before{content:"";position:absolute;left:50%;top:-14px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:var(--suit-red);box-shadow:0 0 0 2px var(--ivory)}
+.cs-pen{position:absolute;top:-8px;bottom:-8px;width:6px;border-radius:2px;background:var(--brass);box-shadow:0 0 0 2px var(--ink)}
+.cs-pen span{position:absolute;top:-22px;left:50%;transform:translateX(-50%);white-space:nowrap;font:600 11px var(--font-body);color:var(--brass)}
+.cs-pen[hidden]{display:none}
+#cutOv .meter-key{margin-top:10px}
 .intro{border-color:var(--brass-dim)}
 .intro[hidden]{display:none}
 .steps{margin:0;padding-left:20px;display:grid;gap:6px;font-size:14px;color:var(--ivory-dim)}
@@ -441,6 +452,17 @@ input[type=range]{accent-color:var(--brass);width:100%}
     <div id="guideBody" style="display:grid;gap:12px"></div>
   </div>
 </div>
+<div class="overlay" id="cutOv" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cutT">
+    <h2 id="cutT">Cut the shoe</h2>
+    <p class="sub" id="cutSub"></p>
+    <div class="cutstack" id="cutStack" aria-hidden="true"><div class="cs-back" id="csBack"><span>To the back</span></div><div class="cs-card" id="csCard"></div><div class="cs-pen" id="csPen" hidden><span>Dealer’s cut card</span></div></div>
+    <div class="meter-key"><span>Top of the shoe</span><b id="cutPct"></b><span>Bottom</span></div>
+    <input type="range" id="cutRange" min="10" max="90" step="1" value="50" aria-label="Where to cut, as a percent from the top">
+    <div class="row"><button class="btn ghost" data-cut="rand">Random cut</button><button class="btn primary" data-cut="go">Cut here</button></div>
+    <p class="hint" id="cutHint">Rather not cut every time? Settings, Shoe, Cutting the shoe: Auto.</p>
+  </div>
+</div>
 <div class="overlay" id="quizOv" hidden>
   <div class="sheet" role="dialog" aria-modal="true" id="quizBody"></div>
 </div>
@@ -455,7 +477,7 @@ const CHIPC={5:'#a3241d',25:'#1d6b48',100:'#26262b',500:'#5b3a8c'};
 const SPEEDS={relaxed:650,casino:380,fast:150};
 const DEFAULTS={decks:6,pen:75,s17:true,bjPay:'3:2',das:true,doubleOn:'any',surrender:'off',resplitAces:false,
   system:'hilo',quiz:'3',askTC:false,showRC:false,showCards:false,showEdge:false,unit:10,hint:false,feedback:true,indices:true,speed:'casino',
-  bots:3,startSeat:3,turnover:'stay',view:'solo',mode:'solo',introDone:false,betHint:true,drillKind:'camp',drillLen:20,tagLen:20,tagPad:'thumbs',drillPer:1,drillPace:1000};
+  bots:3,startSeat:3,turnover:'stay',view:'solo',mode:'solo',introDone:false,betHint:true,cutBy:'me',drillKind:'camp',drillLen:20,tagLen:20,tagPad:'thumbs',drillPer:1,drillPace:1000};
 /* Computer player habits. They are never labelled at the table, but each seat plays differently. None play perfectly. */
 const STYLE_KEYS=['book','cautious','nobust','mimic','hunch'];
 const STATS0={hands:0,wins:0,losses:0,pushes:0,net:0,wager:0,bj:0,busts:0,best:0,worst:0,cAsked:0,cRight:0,cStreak:0,cBest:0,tAsked:0,tRight:0,sDec:0,sRight:0};
@@ -526,7 +548,7 @@ let busy=false;
 /* Saved only between hands, so leaving mid-hand puts the table back as it was before the deal and no money is lost. */
 const cardId=c=>SUITS.indexOf(c.s)*13+RANKS.indexOf(c.r);
 function snapshot(){
-  return{shoe:S.shoe.map(cardId),pos:S.pos,cut:S.cut,rc:S.rc,needShuffle:S.needShuffle,sinceQuiz:S.sinceQuiz,sel:S.sel,
+  return{shoe:S.shoe.map(cardId),pos:S.pos,cut:S.cut,rc:S.rc,needShuffle:S.needShuffle,uncut:!!S.uncut,sinceQuiz:S.sinceQuiz,sel:S.sel,
     seenN:S.seenN,seats:S.seats.map(x=>({occupant:x.occupant,owner:x.owner,style:x.style,base:x.base,bet:x.bet}))};
 }
 function save(){
@@ -552,7 +574,7 @@ function restoreTable(t){
       if(x.occupant==='player'){if(x.owner==='g')o.occupant='open';else{o.owner='h';o.bet=Math.max(0,Number(x.bet)||0);}}
       return o;
     });
-    S.shoe=shoe;S.total=shoe.length;S.pos=t.pos;S.cut=t.cut;S.rc=S.rcRound=t.rc;S.needShuffle=!!t.needShuffle;
+    S.shoe=shoe;S.total=shoe.length;S.pos=t.pos;S.cut=t.cut;S.rc=S.rcRound=t.rc;S.needShuffle=!!t.needShuffle;S.uncut=!!t.uncut&&t.pos===1;
     S.seenN={};
     if(t.seenN&&typeof t.seenN==='object'&&RANKS.every(r=>Number.isInteger(t.seenN[r]||0)&&(t.seenN[r]||0)>=0))RANKS.forEach(r=>{if(t.seenN[r])S.seenN[r]=t.seenN[r];});
     else for(let i=(t.cut===shoe.length?0:1);i<t.pos;i++)S.seenN[shoe[i].r]=(S.seenN[shoe[i].r]||0)+1;
@@ -665,7 +687,12 @@ function newShoe(){
   const cards=shuffle(fullDecks());
   S.shoe=cards;S.total=cards.length;S.pos=1; /* one unseen burn card */
   S.cut=Math.max(10,Math.min(Math.floor(S.total*cfg.pen/100),S.total-14));
-  S.rc=baseCount();S.seenN={};S.needShuffle=false;
+  S.rc=baseCount();S.seenN={};S.needShuffle=false;S.uncut=true;
+}
+/* A cut moves the cards above it to the back, like a player's cut in a casino. Only before any card is seen, so the count is untouched. */
+function applyCut(f){
+  const k=Math.round(Math.max(.1,Math.min(.9,f))*S.total);
+  S.shoe=S.shoe.slice(k).concat(S.shoe.slice(0,k));S.uncut=false;
 }
 function emergency(){
   const inPlay=S.dealer.cards.slice();
@@ -1555,7 +1582,12 @@ async function deal(){
   S.dealer={cards:[],hole:true,flip:false};S.coach='';S.hintOpen=false;S.msgCls='';S.msgG='';S.msgClsG='';S.rnd++;S.turn={s:-1,h:0};S.insSeat=-1;
   for(const s of S.seats){s.hands=[];s.insurance=0;s.insDone=true;}
   S.phase='dealing';S.msg='';
-  if(S.needShuffle||S.pos>=S.cut){S.msg='Shuffling…';render();await sleep(800);newShoe();}
+  if(S.needShuffle||S.pos>=S.cut){S.msg='New shoe. The dealer is shuffling '+cfg.decks+' deck'+(cfg.decks>1?'s':'')+'…';render();await sleep(900);newShoe();}
+  if(S.uncut){
+    if(cfg.cutBy==='me'){S.msg=Net.peer?'New shoe. The host is cutting the cards.':'New shoe. Your cut.';render();applyCut(await askCut());}
+    else applyCut((20+rnd(61))/100);
+    S.msg='New shoe'+(cfg.cutBy==='me'?'':', cut by the dealer')+'. The count starts over at '+sgn(baseCount())+'.';render();await sleep(Math.max(1200,D()*3));
+  }
   S.rcRound=S.rc;S.rd={dec:0,ok:0};S.start={sn:Object.assign({},S.seenN),pos:S.pos,len:S.shoe.length};
   for(const s of S.seats){
     if(human(s)&&s.bet>=MIN){spend(s,s.bet);s.hands=[newHand(s.bet)];}
@@ -1751,6 +1783,43 @@ function recordRound(w,info){
   m.sh.push(e);
 }
 
+/* ---------- cutting a new shoe ---------- */
+/* Shows the shuffled shoe from the side. Drag the red card (or use the slider) and tap Cut. Resolves with the cut as a fraction from the top. */
+let cutDone=null,cutAt=.5;
+function setCut(f){
+  cutAt=Math.max(.1,Math.min(.9,f));
+  const pct=Math.round(cutAt*100);
+  $('#csCard').style.left='calc('+pct+'% - 5px)';$('#csBack').style.width=pct+'%';
+  $('#cutPct').textContent=Math.round(cutAt*S.total)+' cards from the top';$('#cutRange').value=pct;
+}
+function askCut(){
+  return new Promise(res=>{
+    cutDone=res;
+    $('#cutSub').textContent='The dealer shuffled '+cfg.decks+' deck'+(cfg.decks>1?'s':'')+' ('+S.total+' cards). Drag the red card to where you want to cut, then tap Cut here. The cards above your cut go to the back.';
+    $('#csPen').hidden=true;$('#cutOv').querySelectorAll('button').forEach(b=>b.disabled=false);$('#cutHint').hidden=false;
+    setCut(.3+rnd(41)/100);$('#cutOv').hidden=false;
+  });
+}
+async function finishCut(f){
+  if(!cutDone)return;
+  setCut(f);
+  $('#cutOv').querySelectorAll('button').forEach(b=>b.disabled=true);
+  /* Show where the dealer's cut card goes in the shoe after the cut, then close. */
+  const pen=$('#csPen');pen.style.left='calc('+cfg.pen+'% - 3px)';pen.hidden=false;$('#cutHint').hidden=true;
+  $('#cutSub').textContent='Cut. The dealer puts the cut card '+cfg.pen+'% of the way in. When it comes out, this shoe ends after that round.';
+  await sleep(1600);
+  $('#cutOv').hidden=true;
+  const r=cutDone;cutDone=null;r(cutAt);
+}
+function cutFromPointer(e){const r=$('#cutStack').getBoundingClientRect();setCut((e.clientX-r.left)/r.width);}
+$('#cutStack').addEventListener('pointerdown',e=>{if(!cutDone||$('#csPen').hidden===false)return;e.preventDefault();$('#cutStack').setPointerCapture(e.pointerId);cutFromPointer(e);});
+$('#cutStack').addEventListener('pointermove',e=>{if(cutDone&&$('#cutStack').hasPointerCapture(e.pointerId))cutFromPointer(e);});
+$('#cutRange').addEventListener('input',e=>setCut(Number(e.target.value)/100));
+$('#cutOv').addEventListener('click',e=>{
+  const b=e.target.closest('[data-cut]');if(!b||b.disabled)return;
+  finishCut(b.dataset.cut==='rand'?(10+rnd(81))/100:cutAt);
+});
+
 /* ---------- count quiz ---------- */
 let quiz={rc:0,tc:0,done:false,res:null};
 function maybeQuiz(){
@@ -1855,7 +1924,7 @@ function grpSummary(n){
   const c=cfg;
   switch(n){
     case'Saved setups':{const on=presets.find(presetOn);return presets.length?presets.length+' saved'+(on?' · using '+on.name:''):'Save your settings under a name';}
-    case'Shoe':return c.decks+' deck'+(c.decks>1?'s':'')+' · cut card at '+c.pen+'%';
+    case'Shoe':return c.decks+' deck'+(c.decks>1?'s':'')+' · cut card at '+c.pen+'% · '+(c.cutBy==='me'?'you cut':'dealer cuts');
     case'Table':return c.bots+' other player'+(c.bots===1?'':'s')+' · you start in seat '+c.startSeat+' · '+(c.turnover==='stay'?'players stay':'players come and go');
     case'Rules':return(c.s17?'Stands':'Hits')+' soft 17 · pays '+c.bjPay.replace(':',' to ')+' · '+(c.das?'double after split':'no double after split')+(c.surrender==='late'?' · surrender':'');
     case'Counting':return SYSTEMS[c.system].name+' · quiz '+({off:'off','1':'every hand','3':'every 3 hands',rand:'at random'}[c.quiz])+' · count '+(c.showRC?'shown':'hidden');
@@ -1872,6 +1941,7 @@ function renderSettings(){
    +grpOpen('Shoe')
    +fld('Decks in the shoe','<div class="stepper"><button class="btn" data-set="decks" data-val="'+(cfg.decks-1)+'" '+(cfg.decks<=1?'disabled':'')+' aria-label="Fewer decks">−</button><output>'+cfg.decks+'</output><button class="btn" data-set="decks" data-val="'+(cfg.decks+1)+'" '+(cfg.decks>=8?'disabled':'')+' aria-label="More decks">+</button></div>'
      +seg('decks',[['1',1],['2',2],['4',4],['6',6],['8',8]]),'Changing the shoe starts a fresh shuffle.')
+   +fld('Cutting the shoe',seg('cutBy',[['I cut','me'],['Auto','auto']]),'When a new shoe starts, cut it yourself, or let the dealer cut it at random.')
    +'<div class="field"><label for="penRange">Penetration <output id="penOut">'+cfg.pen+'%</output></label><input id="penRange" type="range" min="50" max="90" step="5" value="'+cfg.pen+'"><p class="hint">Where the cut card sits. The shoe is reshuffled after the round that reaches it.</p></div></div></details>'
    +grpOpen('Table')
    +fld('Other players at start',seg('bots',[['0',0],['1',1],['2',2],['3',3],['4',4]]))
@@ -1926,7 +1996,7 @@ $('#settingsBody').addEventListener('click',e=>{
   presetDel=-1;presetNote='';
   if(b.dataset.set){setCfg(b.dataset.set,JSON.parse(b.dataset.val));return;}
   if(b.dataset.act==='openGuide'){openGuide('count');return;}
-  if(b.dataset.act==='newShoe'){newShoe();S.msg='New shoe shuffled.';S.msgCls='';S.coach='';save();renderSettings();render();return;}
+  if(b.dataset.act==='newShoe'){newShoe();S.msg='New shoe shuffled.'+(cfg.cutBy==='me'?' You cut it when you deal.':'');S.msgCls='';S.coach='';save();renderSettings();render();return;}
   if(b.dataset.act==='reloadBank'){cmd({t:'reload'});}
 });
 ['#vDrill','#vStats'].forEach(id=>$(id).addEventListener('toggle',e=>{const g=e.target;if(!g.matches||!g.matches('details.grp'))return;if(g.open)openGrps.add(g.dataset.grp);else openGrps.delete(g.dataset.grp);},true));
@@ -2425,6 +2495,7 @@ $('#controls').addEventListener('click',e=>{
   else cmd({t:'act',k:a});
 });
 document.addEventListener('keydown',e=>{
+  if(!$('#cutOv').hidden){if(e.key==='Enter')finishCut(cutAt);return;}
   if(!$('#guideOv').hidden){if(e.key==='Escape')closeGuide();return;}
   if(!$('#settingsOv').hidden||!$('#quizOv').hidden){if(e.key==='Escape'){if(!$('#settingsOv').hidden)closeSettings();}return;}
   const t=e.target&&e.target.tagName;if(e.metaKey||e.ctrlKey||e.altKey)return;

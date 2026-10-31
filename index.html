@@ -148,12 +148,15 @@ kbd{font:500 11px var(--font-mono);color:var(--ivory-dim);border:1px solid rgba(
 .chip:disabled{opacity:.35;cursor:default}
 .suggest{display:grid;gap:2px;margin:0;text-align:left;background:transparent;border:1px dashed var(--brass-dim);color:var(--brass);border-radius:10px;min-height:44px;padding:8px 12px;font:600 13px var(--font-body);cursor:pointer}
 .suggest small{color:var(--ivory-dim);font-weight:500;font-size:12px}
-.vs{display:flex;align-items:center;justify-content:center;gap:14px;padding:8px;border-radius:12px;background:var(--shade);box-shadow:inset 0 0 0 1.5px var(--brass-dim)}
-.vs.other{box-shadow:inset 0 0 0 1.5px var(--friend)}
-.vs-side{display:grid;justify-items:center;gap:4px;--cw:clamp(42px,12vw,54px)}
-.vs .cards{min-height:calc(var(--cw)*1.42)}
-.vs .card+.card{margin-left:calc(var(--cw)*-.45)}
-.vs-mid{font:600 12px var(--font-body);color:var(--ivory-dim);text-transform:uppercase;letter-spacing:.12em}
+.focus{--fcw:clamp(62px,19vw,84px);display:grid;justify-items:center;align-content:start;gap:6px;margin:0 0 12px;padding:8px 8px 10px;border-radius:14px;background:var(--shade);box-shadow:inset 0 0 0 1.5px var(--brass-dim);min-height:calc(var(--fcw)*1.42 + 64px)}
+.focus[hidden]{display:none}
+.focus.other{box-shadow:inset 0 0 0 1.5px var(--friend)}
+.focus .zone-label{margin:0;color:var(--ivory)}
+.fhands{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.fh{display:grid;justify-items:center;gap:6px}
+.fh .cards{--cw:var(--fcw);min-height:calc(var(--cw)*1.42)}
+.focus.multi .fh .cards{--cw:clamp(44px,13vw,60px)}
+.fh .pill{font-size:14px;padding:4px 10px}
 .coach{margin:0;font-size:13px}
 .coach.good{color:var(--win)}.coach.bad{color:var(--lose)}.coach.hint{color:var(--brass)}
 
@@ -413,6 +416,7 @@ input[type=range]{accent-color:var(--brass);width:100%}
       <text><textPath href="#arc1" startOffset="50%" text-anchor="middle" id="arcT1"></textPath></text>
     </svg>
     <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    <div class="focus" id="focus" hidden></div>
     <div class="seats" id="seats"></div>
   </section>
 
@@ -922,7 +926,31 @@ function renderTable(){
   $('#dLabel').innerHTML=dl;
   $('#arcT1').textContent='Pays '+cfg.bjPay.replace(':',' to ')+' · Dealer '+(cfg.s17?'stands':'hits')+' on soft 17';
   const m=$('#msg');m.textContent=S.msg;m.className='msg '+(S.msgCls||'');
+  renderFocus();
   $('#seats').innerHTML=S.seats.map(seatHTML).join('');
+}
+/* The hand being played, drawn big in the middle of the table. It follows the turn, so after a split it moves to each hand in order.
+   While cards are dealt and the dealer plays, it shows your own hands. The space stays reserved for the whole round so nothing jumps. */
+function renderFocus(){
+  const el=$('#focus'),ph=S.phase;
+  if(ph==='bet'){el.hidden=true;el.innerHTML='';return;}
+  let s=null,hands=[],on=-1,label='';
+  if(ph==='player'&&cur()){
+    const c=cur();s=c.s;hands=[c.h];on=0;
+    const n=s.hands.length,i=S.seats.indexOf(s);
+    label=(mine(s)?'Your turn · ':human(s)?'Waiting on ':'')+'Seat '+(i+1)+(human(s)?'':' is playing')+(n>1?' · hand '+(S.turn.h+1)+' of '+n:'');
+  }else if(ph==='insurance'&&S.seats[S.insSeat]&&S.seats[S.insSeat].hands.length){
+    s=S.seats[S.insSeat];hands=[s.hands[0]];on=0;label='Seat '+(S.insSeat+1)+' · insurance?';
+  }else{
+    s=S.seats.find(x=>mine(x)&&x.hands.length)||null;
+    if(s){hands=s.hands;label=(hands.length>1?'Your hands':'Your hand')+' · Seat '+(S.seats.indexOf(s)+1);}
+  }
+  el.hidden=false;
+  el.className='focus'+(s&&human(s)&&!mine(s)?' other':'')+(hands.length>1?' multi':'');
+  if(!s){el.innerHTML='';return;}
+  /* Copies keep the deal animation on the seat cards too. */
+  el.innerHTML='<div class="zone-label">'+esc(label)+'</div><div class="fhands">'+hands.map((h,j)=>'<div class="fh'+(j===on?' on':'')+'"><div class="cards">'+h.cards.map(k=>cardHTML(Object.assign({},k),false,false)).join('')+'</div>'
+    +(h.cards.length?'<span class="pill">'+(isBJ(h)?'Blackjack':totalTxt(h))+(h.doubled?' · doubled':'')+'</span>':'')+'</div>').join('')+'</div>';
 }
 function seatHTML(s,i){
   const turn=(S.phase==='player'&&S.turn.s===i)||(S.phase==='insurance'&&S.insSeat===i);
@@ -971,13 +999,6 @@ function countNote(){
   return'Count used: running '+sgn(S.rc)+' ÷ '+dl.toFixed(1)+' deck'+(dl===1?'':'s')+' left = true '+sgn1(S.rc/dl)+', rounded down to '+sgn(Math.floor(S.rc/dl))+'.';
 }
 function hintCard(head,sub,reason){return'<div class="hint-card"><b>Hint: '+esc(head)+'</b><span>'+esc(sub)+'</span><p>Why: '+esc(reason)+'</p><p class="hint-count">'+esc(countNote())+'</p></div>';}
-/* The hand being decided, next to the dealer's up card, so the decision never needs a scroll back up to the table. */
-function handVsHTML(s,h){
-  if(!h||!h.cards.length)return'';
-  const up=S.dealer.cards[0],me=mine(s);
-  return'<div class="vs'+(human(s)&&!me?' other':'')+'"><div class="vs-side"><div class="cards">'+h.cards.map(k=>cardHTML(Object.assign({},k,{fresh:false}),false,false)).join('')+'</div><span class="pill">'+(isBJ(h)?'Blackjack':totalTxt(h))+'</span></div>'
-    +(up?'<span class="vs-mid">vs</span><div class="vs-side"><div class="cards">'+cardHTML(Object.assign({},up,{fresh:false}),false,false)+'</div><span class="pill">Dealer '+(up.r==='A'?'A':cardVal(up.r))+'</span></div>':'')+'</div>';
-}
 let lastTurnKey='';
 /* When it becomes your move, bring the buttons into view once. */
 function revealControls(){
@@ -1012,7 +1033,7 @@ function renderControls(){
       html='<div class="panel"><p class="note"><b>'+seatTag(S.insSeat)+'.</b> Waiting for the other player to answer insurance.</p></div>';
     }else if(s){
       const cost=r2(s.hands[0].bet/2),rec=(cfg.hint||S.hintOpen)?recIns():null;
-      html='<div class="panel"><div class="panel-head"><p class="note"><b>'+seatTag(S.insSeat)+'.</b> Insurance costs '+fmt(cost)+' and pays 2 to 1 if the dealer has blackjack.</p>'+hintBtn(!busy)+'</div>'+handVsHTML(s,s.hands[0])
+      html='<div class="panel"><div class="panel-head"><p class="note"><b>'+seatTag(S.insSeat)+'.</b> Insurance costs '+fmt(cost)+' and pays 2 to 1 if the dealer has blackjack.</p>'+hintBtn(!busy)+'</div>'
         +'<div class="actions"><button class="btn'+(rec&&rec.act?' rec':'')+'" data-act="ins-yes" '+(funds(s)<cost?'disabled':'')+'>Take insurance <kbd>Y</kbd></button>'
         +'<button class="btn'+(rec&&!rec.act?' rec':'')+'" data-act="ins-no">No insurance <kbd>N</kbd></button></div>'
         +(rec?hintCard(rec.act?'take insurance':'decline insurance','because '+rec.why,rec.reason):'')+coachHTML()+'</div>';
@@ -1023,8 +1044,7 @@ function renderControls(){
     let who='';
     if(ph==='player'&&c){
       const n=c.s.hands.length;
-      who='<div class="panel-head"><p class="note"><b>'+(my?'Your turn: ':human(c.s)?'Waiting on ':'Now playing: ')+seatTag(S.turn.s)+(n>1?', hand '+(S.turn.h+1)+' of '+n:'')+'.</b></p>'+hintBtn(live)+'</div>'
-        +handVsHTML(c.s,c.h);
+      who='<div class="panel-head"><p class="note"><b>'+(my?'Your turn: ':human(c.s)?'Waiting on ':'Now playing: ')+seatTag(S.turn.s)+(n>1?', hand '+(S.turn.h+1)+' of '+n:'')+'.</b></p>'+hintBtn(live)+'</div>';
     }else if(ph==='dealing'||ph==='dealer')who='<p class="note">'+(ph==='dealer'?'Dealer is playing.':'Dealing…')+'</p>';
     html='<div class="panel">'+who+'<div class="actions">'+b('hit','Hit','H')+b('stand','Stand','S')+b('double','Double','D')+b('split','Split','P')+(cfg.surrender==='late'?b('surrender','Surrender','R'):'')+'</div>'
       +(rec?hintCard(ucf(VERB[rec.act]),rec.desc+' ('+rec.why+')',rec.reason):'')+coachHTML()+'</div>';

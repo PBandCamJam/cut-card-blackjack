@@ -34,7 +34,7 @@ Single-file app: `index.html` (CSS, markup, one IIFE script). Keep it dependency
 ## Views, stats and drills
 - Four tabs share one page: Solo and Together (both `#vPlay`), Drill (`#vDrill`) and Stats (`#vStats`). `setView()` switches them and keeps the choice in `cfg.view`.
 - The tab bar is fixed at the bottom of the screen, under the thumbs. The body keeps bottom padding for it, and `#tabNote` messages sit just above it.
-- During a hand, the controls panel shows the hand being decided next to the dealer's up card (`handVsHTML()`), so a decision never needs the table in view. `revealControls()` scrolls the buttons into view once when it becomes your move.
+- During a round, `renderFocus()` draws the hand being played big in the middle of the table (`#focus`). It follows the turn, so after a split it moves to each hand in order, and while cards are dealt or the dealer plays it shows your own hands. Its space stays reserved all round. `revealControls()` scrolls the buttons into view once when it becomes your move.
 - Long screens are split into folding sections: `grpOpen()` in Settings and `fold()` in Drill and Stats, each with a one-line summary when closed. `openGrps` remembers which are open for the visit.
 - `#intro` is a one-time welcome card on the Solo table, dismissed into `cfg.introDone`.
 - Solo and Together are separate tables. `S.mode` is 'solo' or 'tog'. Each has its own saved table, bankroll and stats in `slots` and `ST`. `switchMode()` puts one table away and restores the other, only between hands and never while hosting or joined. Play together lives in the Together tab (`#togPanel`), and the guest sends their Together bankroll.

@@ -49,3 +49,10 @@ Single-file app: `index.html` (CSS, markup, one IIFE script). Keep it dependency
 - The bet size suggestion is the `betHint` setting, not a lightbulb.
 - The table count quiz never pops up over a finished round. `maybeQuiz()` only marks it due (`quizDue`), and `tapDeal()` opens it when the player taps Deal. Answering or skipping then deals (`quiz.thenDeal`).
 - Counts are typed on an in-app number pad (`numPadHTML()`, `padKey()`), never a text input, so the phone keyboard never opens. Used by the table count quiz (running and true count, tap a box to pick which) and the running count drill answer. Hardware keys work too: digits, minus, Backspace, Enter.
+
+## Headed for a native app
+The owner is the only user for now, and the plan is a real native app later (not a web wrapper). Make changes with that move in mind:
+- Keep all saved data in the one `cutcard.v1` JSON blob, with plain values only (no DOM or class instances), so a backup can carry it into another app. When the shape changes, keep reading the old shape.
+- Keep game rules, counting, strategy, drills and stats in plain functions that do not touch the DOM, so they can be ported or reused. UI code calls them, not the other way round.
+- Do not add web-only dependencies to that logic (no new network services, no browser-only APIs beyond `crypto.getRandomValues`).
+- Before any move to a new domain or an app, add backup and restore (or an automatic handoff) so the owner's stats and campaign progress come along.

@@ -212,6 +212,9 @@ kbd{font:500 11px var(--font-mono);color:var(--ivory-dim);border:1px solid rgba(
 .sheet h2.ok{color:var(--win)}.sheet h2.bad{color:var(--lose)}
 .sub{margin:0;color:var(--ivory-dim);font-size:13px}
 .grps{display:grid;gap:8px}
+.ready-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rdy{padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.25);font:600 13px var(--font-body);color:var(--ivory-dim);text-align:center}
+.rdy.on{background:var(--act-hit);color:var(--ivory)}
 /* Count entry: a display per number and a phone-style pad. */
 .numdisps{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px}
 .numdisp{display:grid;gap:2px;justify-items:center;padding:10px;border-radius:12px;border:1.5px solid rgba(255,255,255,.1);background:rgba(0,0,0,.3);color:var(--ivory);cursor:pointer}
@@ -555,7 +558,7 @@ const S={
   bankroll:typeof saved.bankroll==='number'&&saved.bankroll>=0?saved.bankroll:START_BANK,
   phase:'bet',dealer:{cards:[],hole:true,flip:false},seats:[],sel:-1,turn:{s:-1,h:0},insSeat:-1,
   msg:'Tap a seat to sit, then place your bet.',msgCls:'',coach:'',coachCls:'',hintOpen:false,sinceQuiz:0,
-  rd:{dec:0,ok:0},start:{sn:{},pos:0,len:0},mode:cfg.mode==='tog'?'tog':'solo'
+  ready:{h:false,g:false},rd:{dec:0,ok:0},start:{sn:{},pos:0,len:0},mode:cfg.mode==='tog'?'tog':'solo'
 };
 let busy=false;
 /* Saved only between hands, so leaving mid-hand puts the table back as it was before the deal and no money is lost. */
@@ -1008,6 +1011,15 @@ function revealControls(){
   const el=$('#controls'),r=el.getBoundingClientRect(),navH=$('.tabs').getBoundingClientRect().height;
   if(!$('#vPlay').hidden&&r.bottom>innerHeight-navH)window.scrollBy({top:r.bottom-(innerHeight-navH)+8,behavior:'smooth'});
 }
+/* Shared table: each player says they are ready, and the hand deals when both are. */
+function readyHTML(bc){
+  const me=S.ready[S.me],ot=S.ready[S.me==='h'?'g':'h'];
+  const st=(on,who)=>'<span class="rdy'+(on?' on':'')+'">'+(on?'✓ ':'')+who+': '+(on?'ready':'still betting')+'</span>';
+  return'<div class="ready-row">'+st(me,'You')+st(ot,'Other player')+'</div>'
+    +(me?'<button class="btn big" data-act="unready">Not ready yet</button>'
+      :'<button class="btn primary big" data-act="deal" '+(bc.ok?'':'disabled')+'>'+(ot?'Ready: deal now':'I\u2019m ready')+'</button>')
+    +'<p class="hint">The hand deals once you are both ready. Changing a bet or seat takes you off ready.</p>';
+}
 function renderControls(){
   const el=$('#controls'),ph=S.phase;let html='';
   if(ph==='bet'){
@@ -1023,10 +1035,10 @@ function renderControls(){
     }
     const meta=seated.length?'<div class="bet-meta"><span class="limits">Seat'+(seated.length>1?'s':'')+' '+seated.join(', ')+' · total '+fmt(bc.tot)+' · limits '+fmt(MIN)+' to '+fmt(MAX)+'</span>'+(s&&mine(s)?'<button class="link" data-act="leave">Leave seat '+(S.sel+1)+'</button>':'')+'</div>'
       :'<p class="hint">Or just tap Deal to watch the table and practice the count.</p>';
-    html='<div class="panel">'+top+coachHTML()+(Net.peer?'<p class="hint">Blue seats are the other player\u2019s. Either of you can tap Deal once your bets are in.</p>':'')
+    html='<div class="panel">'+top+coachHTML()+(Net.peer?'<p class="hint">Blue seats are the other player\u2019s.</p>':'')
       +(S.bankroll<MIN?'<p class="note">You are out of chips for this table.</p><button class="btn" data-act="reload">Reload '+fmt(START_BANK)+'</button>':'')
       +meta+(bc.why?'<p class="coach bad">'+bc.why+'</p>':'')
-      +'<button class="btn primary big" data-act="deal" '+(bc.ok?'':'disabled')+'>Deal</button></div>';
+      +(Net.peer?readyHTML(bc):'<button class="btn primary big" data-act="deal" '+(bc.ok?'':'disabled')+'>Deal</button>')+'</div>';
   }else if(ph==='insurance'){
     const s=S.seats[S.insSeat];
     if(s&&!mine(s)){
@@ -1611,7 +1623,7 @@ function revealHole(){S.dealer.hole=false;S.dealer.flip=true;seen(S.dealer.cards
 
 async function deal(){
   if(S.phase!=='bet'||busy||!betCheck().ok)return;
-  busy=true;
+  busy=true;S.ready={h:false,g:false};
   S.dealer={cards:[],hole:true,flip:false};S.coach='';S.hintOpen=false;S.msgCls='';S.msgG='';S.msgClsG='';S.rnd++;S.turn={s:-1,h:0};S.insSeat=-1;
   for(const s of S.seats){s.hands=[];s.insurance=0;s.insDone=true;}
   S.phase='dealing';S.msg='';
@@ -1901,7 +1913,7 @@ function renderQuiz(){
       +'<p>You said '+sgn(quiz.rc)+'. The running count is '+sgn(r.actual)+'.</p>'
       +(r.tcShown?'<p>True count is about '+sgn1(r.tcExp)+'. You said '+sgn(quiz.tc)+(r.tcOk?', close enough.':'.')+'</p>':'')
       +'<p class="sub">Streak '+stats.cStreak+', best '+stats.cBest+'. Accuracy '+Math.round(stats.cRight/stats.cAsked*100)+'% over '+stats.cAsked+' checks.</p>'
-      +'<button class="btn primary big" data-q="close">'+(quiz.thenDeal?'Deal next hand':'Continue')+'</button>';
+      +'<button class="btn primary big" data-q="close">'+(quiz.thenDeal?(Net.peer?'I\u2019m ready':'Deal next hand'):'Continue')+'</button>';
   }
   $('#quizBody').innerHTML=h;
 }
@@ -2275,7 +2287,7 @@ async function startOffer(id){
 }
 function stopHosting(){
   const was=Net.peer;
-  teardownAll();
+  teardownAll();S.ready={h:false,g:false};
   if(was)dropGuestSeats();
   Net.role=null;Net.status='idle';Net.err='';
   S.msg='You stopped hosting.';
@@ -2317,7 +2329,7 @@ function leaveTable(){
 }
 function peerGone(msg){
   const was=Net.peer;
-  Net.peer=false;Net.ready=false;Net.hello=false;Net.pend=false;
+  Net.peer=false;Net.ready=false;Net.hello=false;Net.pend=false;S.ready={h:false,g:false};
   resetPeer();
   if(Net.role==='host'){
     Net.status=Net.es?'waiting':'idle';Net.err=was?'':msg;
@@ -2349,7 +2361,7 @@ function buildView(){
     d:{c:S.dealer.cards.map(function(c,i){return cv(c,i===1&&S.dealer.hole);}),hole:S.dealer.hole,flip:S.dealer.flip},
     seats:S.seats.map(function(s){return{o:s.occupant,w:s.owner,b:s.bet,i:s.insurance,id:s.insDone,
       h:s.hands.map(function(h){return{c:h.cards.map(function(c){return cv(c);}),b:h.bet,dn:h.done,bu:h.bust,su:h.surrendered,fs:h.fromSplit,sa:h.splitAces,db:h.doubled,r:h.result,n:h.net};})};}),
-    turn:S.turn,ins:S.insSeat,pos:S.pos,len:S.shoe.length,tot:S.total,cut:S.cut,sn:S.seenN,bh:S.bankroll,bg:S.bankOther,
+    turn:S.turn,ins:S.insSeat,rdy:S.ready,pos:S.pos,len:S.shoe.length,tot:S.total,cut:S.cut,sn:S.seenN,bh:S.bankroll,bg:S.bankOther,
     rules:pickKeys(cfg,RULE_KEYS)};
 }
 const recomputeRC=function(){
@@ -2371,7 +2383,7 @@ function applyView(v){
         fromSplit:!!h.fs,splitAces:!!h.sa,doubled:!!h.db,result:h.r,net:h.n||0};});
       return s;
     });
-    S.settled=v.settled;S.turn=v.turn;S.insSeat=v.ins;S.pos=v.pos;S.shoe=new Array(v.len);S.total=v.tot;S.cut=v.cut;S.seenN=v.sn||{};
+    S.settled=v.settled;S.turn=v.turn;S.insSeat=v.ins;S.ready={h:!!(v.rdy&&v.rdy.h),g:!!(v.rdy&&v.rdy.g)};S.pos=v.pos;S.shoe=new Array(v.len);S.total=v.tot;S.cut=v.cut;S.seenN=v.sn||{};
     S.bankroll=v.bg;S.bankOther=v.bh;
     const own=v.ph==='bet'&&v.mg;
     S.msg=own?v.mg:v.msg;S.msgCls=own?v.mgc:v.mc;
@@ -2410,16 +2422,21 @@ function runCmd(m,who){
   switch(m.t){
     case'sit':
       if(bet&&seat&&(owns||!human(seat))){
-        if(!owns)sit(i,who);
+        if(!owns){sit(i,who);S.ready[who]=false;}
         if(who===S.me){S.sel=i;S.coach='';}
       }
       break;
-    case'leave':if(bet&&owns){Object.assign(seat,seatObj());}break;
+    case'leave':if(bet&&owns){Object.assign(seat,seatObj());S.ready[who]=false;}break;
     case'bet':
-      if(bet&&owns&&Number.isFinite(m.v)){seat.bet=Math.max(0,Math.min(Math.floor(m.v/5)*5,roomFor(i)));}
+      if(bet&&owns&&Number.isFinite(m.v)){const v=Math.max(0,Math.min(Math.floor(m.v/5)*5,roomFor(i)));if(v!==seat.bet)S.ready[who]=false;seat.bet=v;}
       break;
     case'reload':if(bet)reload(who);break;
-    case'deal':deal();break;
+    /* At a shared table, Deal means "I'm ready". The host deals once both players are ready. */
+    case'deal':
+      if(!Net.peer){deal();break;}
+      if(bet&&Net.role==='host'){S.ready[who]=true;if(S.ready.h&&S.ready.g&&betCheck().ok)deal();}
+      break;
+    case'unready':if(bet)S.ready[who]=false;break;
     case'act':if(CMD_KINDS.indexOf(m.k)>=0)act(m.k,who);break;
     case'ins':insure(!!m.take,who);break;
   }
@@ -2439,6 +2456,7 @@ function cmd(m){
       S.hintOpen=false;insFeedback(m.take);
     }
     netSend(m);
+    if(m.t==='deal'||m.t==='unready'){if(S.phase==='bet'&&!busy){S.ready[S.me]=m.t==='deal';render();}return;}
     if(m.t==='act'||m.t==='ins'){Net.pend=true;render();}
     else if(m.t==='sit'||m.t==='leave'||m.t==='bet')runCmd(m,S.me);
     return;
@@ -2472,7 +2490,7 @@ function renderNet(){
     }
   }else{
     if(st==='connected'){
-      h='<div class="netbar"><p class="coach good">At table '+esc(Net.code)+'. The host’s rules apply. Tap a seat, bet and tap Deal.</p><button class="btn small" data-n="leave">Leave</button></div>';
+      h='<div class="netbar"><p class="coach good">At table '+esc(Net.code)+'. The host’s rules apply. Tap a seat, bet, then tap I’m ready.</p><button class="btn small" data-n="leave">Leave</button></div>';
     }else if(st==='dropped'){
       h='<p class="coach bad">'+esc(Net.err||'Disconnected.')+'</p>'
         +'<div class="row"><button class="btn primary" data-n="retry">Rejoin</button><button class="btn" data-n="leave">Leave</button></div>';
@@ -2541,6 +2559,7 @@ $('#controls').addEventListener('click',e=>{
   else if(a==='useSuggest')cmd({t:'bet',i:S.sel,v:Number(b.dataset.v)});
   else if(a==='leave')cmd({t:'leave',i:S.sel});
   else if(a==='deal')tapDeal();
+  else if(a==='unready')cmd({t:'unready'});
   else if(a==='reload')cmd({t:'reload'});
   else if(a==='ins-yes')cmd({t:'ins',take:true});
   else if(a==='ins-no')cmd({t:'ins',take:false});

@@ -440,7 +440,7 @@ input[type=range]{accent-color:var(--brass);width:100%}
   </section>
 
   <button class="panel mini" id="miniStats" data-view="stats" aria-label="Open stats"></button>
-  <p class="foot">Practice tool only. Cards come from a shoe shuffled with the browser's cryptographic random generator, with one unseen burn card and a cut card at your chosen depth.</p>
+  <p class="foot">Practice tool with play money only. Your stats stay on this phone. Cards come from a shoe shuffled with the browser's cryptographic random generator, with one unseen burn card and a cut card at your chosen depth.</p>
   </div>
   </div>
 
@@ -2130,8 +2130,12 @@ function basicsTab(){
     +'<h3>Using this app</h3><ul class="why-list">'
     +'<li>Tap any seat between hands to play it. Each seat you take has its own bet. Seat 1 is dealt first and the deal runs clockwise.</li>'
     +'<li>Tap the <b>lightbulb</b> during your turn for a hint and the reason behind it.</li>'
-    +'<li>Tap <b>Show count</b> to see the running count, or keep it hidden and tap <b>Check my count</b> to test yourself.</li>'
+    +'<li>Tap <b>Show count</b> to see the running count, or keep it hidden and tap <b>Quiz me</b> to test yourself.</li>'
     +'<li>Open the <b>Strategy chart</b> and <b>Counting</b> tabs here any time.</li></ul>'
+    +'<h3>Play money and your data</h3><ul class="why-list">'
+    +'<li><b>No real money.</b> Chips, bankrolls and winnings are pretend. Nothing can be bought, bet or cashed out.</li>'
+    +'<li><b>Your data stays on this phone.</b> Settings, bankroll and stats are saved in this browser only. There are no accounts, and nothing is sent anywhere. Clearing your browser data erases them.</li>'
+    +'<li><b>Play together</b> is the only part that uses the internet: the two phones swap connection details through a public relay (ntfy.sh), then play directly with each other.</li></ul>'
     +'<p class="sub">This is a practice tool, not gambling advice. Counting gives a small edge at best, and casinos can ask counters to leave.</p>';
 }
 function countingTab(){
@@ -2160,7 +2164,7 @@ function countingTab(){
     +Object.keys(SYSTEMS).filter(k=>k!=='hilo').map(k=>'<li><b>'+SYSTEMS[k].name+'.</b> '+SYS_DESC[k]+'</li>').join('')+'</ul>'
     +(cfg.system==='ko'?'<p class="sub">You are using KO: do not divide. The count starts at '+sgn(baseCount())+' for '+cfg.decks+' deck'+(cfg.decks>1?'s':'')+' and you raise your bet at +4 or higher.</p>':'')
     +'<h3>Tips</h3><ul class="why-list"><li>Keep the running count in your head and only work out the true count when you need to bet.</li>'
-    +'<li>Practice with the count hidden and use <b>Check my count</b> to test yourself.</li>'
+    +'<li>Practice with the count hidden and use <b>Quiz me</b> to test yourself.</li>'
     +'<li>Speed and accuracy come before betting. A count you cannot keep under pressure does not help.</li></ul>';
 }
 let gTab='basics';
@@ -2368,25 +2372,55 @@ const recomputeRC=function(){
   let n=baseCount();for(const r of RANKS)n+=(S.seenN[r]||0)*tag({r:r});
   S.rc=S.rcRound=n;
 };
+/* The guest checks everything the host sends before it reaches the page. Text from the host is only ever shown as text,
+   and every value that ends up in HTML must be one of the known ranks, suits, seat types, results or rule values. A bad view is dropped. */
+const VIEW_RULES={decks:[1,2,3,4,5,6,7,8],s17:[true,false],bjPay:['3:2','6:5'],das:[true,false],doubleOn:['any','9-11'],surrender:['off','late'],resplitAces:[true,false]};
+const PHASES=['bet','dealing','insurance','player','dealer'];
+function bad(what){throw new Error('bad '+what);}
+const vNum=(x,d)=>{const n=Number(x);return Number.isFinite(n)?n:(d===undefined?0:d);};
+const vInt=(x,lo,hi)=>{const n=Math.trunc(vNum(x));return Math.max(lo,Math.min(hi,n));};
+const vStr=x=>typeof x==='string'?x.slice(0,300):'';
+function vCard(c){if(!c||RANKS.indexOf(c.r)<0||SUITS.indexOf(c.s)<0)bad('card');return{r:c.r,s:c.s,fresh:!!c.f};}
+function vSeen(sn){const o={};if(sn&&typeof sn==='object')RANKS.forEach(r=>{const n=vInt(sn[r],0,416);if(n)o[r]=n;});return o;}
+function vRules(r){
+  const o={};if(!r||typeof r!=='object')return o;
+  Object.keys(VIEW_RULES).forEach(k=>{if(VIEW_RULES[k].indexOf(r[k])>=0)o[k]=r[k];});
+  if(Number.isInteger(r.pen)&&r.pen>=50&&r.pen<=90)o.pen=r.pen;
+  return o;
+}
+/* The round summary used for the guest's stats and round log. */
+function vRound(rn){
+  if(!rn||typeof rn!=='object'||!rn.g||!rn.g.p)return null;
+  const g=rn.g,st=rn.st||{};
+  return{w:{p:true,net:vNum(g.net),wag:Math.max(0,vNum(g.wag)),bj:vInt(g.bj,0,8),bu:vInt(g.bu,0,8),db:vInt(g.db,0,8),hn:vInt(g.hn,1,20),ip:!!g.ip},
+    info:{up:RANKS.indexOf(rn.up)>=0?rn.up:'',dv:rn.dv==='BJ'?'BJ':vInt(rn.dv,0,40),st:{sn:vSeen(st.sn),pos:vInt(st.pos,0,416),len:vInt(st.len,0,416)}}};
+}
 function applyView(v){
   try{
+    if(!v||typeof v!=='object'||PHASES.indexOf(v.ph)<0||!Array.isArray(v.seats)||v.seats.length!==5||!v.d||!Array.isArray(v.d.c))bad('view');
     const first=!Net.ready;
     if(first){S.me='g';Net.lastSettled=v.settled;}
-    RULE_KEYS.forEach(function(k){if(v.rules&&k in v.rules)cfg[k]=v.rules[k];});
+    Object.assign(cfg,vRules(v.rules));
     if(v.rnd!==S.rnd){S.coach='';S.hintOpen=false;S.rd={dec:0,ok:0};}
-    S.phase=v.ph;busy=!!v.busy;S.rnd=v.rnd;
-    S.dealer={cards:v.d.c.map(function(c){return c.h?{r:'2',s:SUITS[0]}:{r:c.r,s:c.s,fresh:!!c.f};}),hole:!!v.d.hole,flip:!!v.d.flip};
-    S.seats=v.seats.map(function(o){
+    const dealer={cards:v.d.c.slice(0,12).map(function(c){return c&&c.h?{r:'2',s:SUITS[0]}:vCard(c);}),hole:!!v.d.hole,flip:!!v.d.flip};
+    const seats=v.seats.map(function(o){
+      if(!o||typeof o!=='object'||!Array.isArray(o.h))bad('seat');
       const s=seatObj();
-      s.occupant=o.o;s.owner=o.w||'';s.bet=o.b||0;s.insurance=o.i||0;s.insDone=o.id!==false;
-      s.hands=o.h.map(function(h){return{cards:h.c.map(function(c){return{r:c.r,s:c.s,fresh:!!c.f};}),bet:h.b,done:!!h.dn,bust:!!h.bu,surrendered:!!h.su,
-        fromSplit:!!h.fs,splitAces:!!h.sa,doubled:!!h.db,result:h.r,net:h.n||0};});
+      s.occupant=['open','player','bot'].indexOf(o.o)>=0?o.o:bad('seat');s.owner=o.w==='h'||o.w==='g'?o.w:'';
+      s.bet=Math.max(0,vNum(o.b));s.insurance=Math.max(0,vNum(o.i));s.insDone=o.id!==false;
+      s.hands=o.h.slice(0,4).map(function(h){if(!h||!Array.isArray(h.c))bad('hand');
+        return{cards:h.c.slice(0,12).map(vCard),bet:Math.max(0,vNum(h.b)),done:!!h.dn,bust:!!h.bu,surrendered:!!h.su,
+        fromSplit:!!h.fs,splitAces:!!h.sa,doubled:!!h.db,result:RESULT[h.r]?h.r:null,net:vNum(h.n)};});
       return s;
     });
-    S.settled=v.settled;S.turn=v.turn;S.insSeat=v.ins;S.ready={h:!!(v.rdy&&v.rdy.h),g:!!(v.rdy&&v.rdy.g)};S.pos=v.pos;S.shoe=new Array(v.len);S.total=v.tot;S.cut=v.cut;S.seenN=v.sn||{};
-    S.bankroll=v.bg;S.bankOther=v.bh;
+    const len=vInt(v.len,0,416);
+    S.phase=v.ph;busy=!!v.busy;S.rnd=vNum(v.rnd);S.dealer=dealer;S.seats=seats;
+    S.settled=vNum(v.settled);S.turn={s:vInt(v.turn&&v.turn.s,-1,5),h:vInt(v.turn&&v.turn.h,0,3)};S.insSeat=vInt(v.ins,-1,4);
+    S.ready={h:!!(v.rdy&&v.rdy.h),g:!!(v.rdy&&v.rdy.g)};S.pos=vInt(v.pos,0,len);S.shoe=new Array(len);S.total=vInt(v.tot,0,416);S.cut=vInt(v.cut,0,416);S.seenN=vSeen(v.sn);
+    S.bankroll=Math.max(0,vNum(v.bg,S.bankroll));S.bankOther=Math.max(0,vNum(v.bh,0));
+    const cls=c=>['win','lose','push'].indexOf(c)>=0?c:'';
     const own=v.ph==='bet'&&v.mg;
-    S.msg=own?v.mg:v.msg;S.msgCls=own?v.mgc:v.mc;
+    S.msg=vStr(own?v.mg:v.msg);S.msgCls=cls(own?v.mgc:v.mc);
     recomputeRC();
     Net.pend=false;
     if(first){
@@ -2395,8 +2429,8 @@ function applyView(v){
     }
     if(v.settled>Net.lastSettled){
       Net.lastSettled=v.settled;
-      const r=v.rn&&v.rn.g;
-      if(r&&r.p)recordRound(r,v.rn);
+      const r=vRound(v.rn);
+      if(r)recordRound(r.w,r.info);
       maybeQuiz();
     }
     render();

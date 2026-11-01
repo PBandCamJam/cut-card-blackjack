@@ -440,7 +440,7 @@ input[type=range]{accent-color:var(--brass);width:100%}
   </section>
 
   <button class="panel mini" id="miniStats" data-view="stats" aria-label="Open stats"></button>
-  <p class="foot">Practice tool with play money only. Your stats stay on this phone. Cards come from a shoe shuffled with the browser's cryptographic random generator, with one unseen burn card and a cut card at your chosen depth.</p>
+  <p class="foot">Practice tool with play money only. Your stats stay on this phone. Cards come from a shoe shuffled with the browser's cryptographic random generator, with one unseen burn card. The shoe ends at the depth you choose.</p>
   </div>
   </div>
 
@@ -1608,7 +1608,8 @@ function render(){
   $('#btnSettings').disabled=!(S.phase==='bet'&&!busy);
   $('#trayFill').style.width=(S.total?S.pos/S.total*100:0)+'%';
   $('#trayCut').style.left='calc('+(S.total?S.cut/S.total*100:75)+'% - 2px)';
-  $('#trayInfo').textContent=cfg.decks+' deck'+(cfg.decks>1?'s':'')+' · cut card at '+Math.round(S.cut/S.total*100)+'%';
+  /* Where the shoe ends (penetration), in cards so it is never confused with the player's cut. */
+  $('#trayInfo').textContent=cfg.decks+' deck'+(cfg.decks>1?'s':'')+' · shoe ends at card '+S.cut+' of '+S.total;
   document.documentElement.style.setProperty('--anim',Math.min(320,D()*.8)+'ms');
   renderTable();renderControls();renderCount();renderMini();revealControls();
   if(cfg.view==='stats')renderStatsView();
@@ -1989,7 +1990,7 @@ function grpSummary(n){
   const c=cfg;
   switch(n){
     case'Saved setups':{const on=presets.find(presetOn);return presets.length?presets.length+' saved'+(on?' · using '+on.name:''):'Save your settings under a name';}
-    case'Shoe':return c.decks+' deck'+(c.decks>1?'s':'')+' · cut card at '+c.pen+'% · '+(c.cutBy==='me'?'you cut':'dealer cuts');
+    case'Shoe':return c.decks+' deck'+(c.decks>1?'s':'')+' · shoe ends at '+c.pen+'% · '+(c.cutBy==='me'?'you cut':'dealer cuts');
     case'Table':return c.bots+' other player'+(c.bots===1?'':'s')+' · you start in seat '+c.startSeat+' · '+(c.turnover==='stay'?'players stay':'players come and go');
     case'Rules':return(c.s17?'Stands':'Hits')+' soft 17 · pays '+c.bjPay.replace(':',' to ')+' · '+(c.das?'double after split':'no double after split')+(c.surrender==='late'?' · surrender':'');
     case'Counting':return SYSTEMS[c.system].name+' · quiz '+({off:'off','1':'every hand','3':'every 3 hands',rand:'at random'}[c.quiz])+' · count '+(c.showRC?'shown':'hidden');
@@ -2007,7 +2008,7 @@ function renderSettings(){
    +fld('Decks in the shoe','<div class="stepper"><button class="btn" data-set="decks" data-val="'+(cfg.decks-1)+'" '+(cfg.decks<=1?'disabled':'')+' aria-label="Fewer decks">−</button><output>'+cfg.decks+'</output><button class="btn" data-set="decks" data-val="'+(cfg.decks+1)+'" '+(cfg.decks>=8?'disabled':'')+' aria-label="More decks">+</button></div>'
      +seg('decks',[['1',1],['2',2],['4',4],['6',6],['8',8]]),'Changing the shoe starts a fresh shuffle.')
    +fld('Cutting the shoe',seg('cutBy',[['I cut','me'],['Auto','auto']]),'When a new shoe starts, cut it yourself, or let the dealer cut it at random.')
-   +'<div class="field"><label for="penRange">Penetration <output id="penOut">'+cfg.pen+'%</output></label><input id="penRange" type="range" min="50" max="90" step="5" value="'+cfg.pen+'"><p class="hint">Where the cut card sits. The shoe is reshuffled after the round that reaches it.</p></div></div></details>'
+   +'<div class="field"><label for="penRange">Where the shoe ends <output id="penOut">'+cfg.pen+'%</output></label><input id="penRange" type="range" min="50" max="90" step="5" value="'+cfg.pen+'"><p class="hint">How deep into the shoe the dealer goes before reshuffling. The shoe ends after the round that reaches it. Your own cut, when a new shoe starts, only changes the order of the cards. At least 14 cards are always left after this point, so with 1 deck it can sit a little earlier than set.</p></div></div></details>'
    +grpOpen('Table')
    +fld('Other players at start',seg('bots',[['0',0],['1',1],['2',2],['3',3],['4',4]]))
    +fld('Your starting seat',seg('startSeat',[['1',1],['2',2],['3',3],['4',4],['5',5]]),'Seat 1 is first base and acts first. Seat 5 is third base and acts last. Changing either option resets the seats.')

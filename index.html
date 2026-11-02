@@ -560,7 +560,7 @@ const S={
   msg:'Tap a seat to sit, then place your bet.',msgCls:'',coach:'',coachCls:'',hintOpen:false,sinceQuiz:0,
   ready:{h:false,g:false},rd:{dec:0,ok:0},start:{sn:{},pos:0,len:0},mode:cfg.mode==='tog'?'tog':'solo'
 };
-let busy=false;
+let busy=false,restoring=false;
 /* Saved only between hands, so leaving mid-hand puts the table back as it was before the deal and no money is lost. */
 const cardId=c=>SUITS.indexOf(c.s)*13+RANKS.indexOf(c.r);
 function snapshot(){
@@ -568,7 +568,7 @@ function snapshot(){
     seenN:S.seenN,seats:S.seats.map(x=>({occupant:x.occupant,owner:x.owner,style:x.style,base:x.base,bet:x.bet}))};
 }
 function save(){
-  if(S.phase!=='bet')return;
+  if(S.phase!=='bet'||restoring)return;
   const guest=Net.role==='guest';
   if(guest&&!Net.ready)return;
   /* At someone else's table, keep your own rules and your own saved Together table. Only your bankroll and stats move on. */
@@ -1983,6 +1983,86 @@ function applyPreset(p){
   if(!guest&&(ch('bots')||ch('startSeat'))){setupTable();S.msg='Seats reset.';S.msgCls='';}
   presetBad=false;presetNote='Using “'+p.name+'”.';save();
 }
+/* ---------- backup and restore ---------- */
+/* Everything this phone saved (settings, bankrolls, tables, stats, drills, campaign, setups) as one code or file.
+   The same format can be read by a future app. Each browser, and each home screen app, keeps its own data, so this is how data moves. */
+const BACKUP_TAG='CUTCARD1:';
+let backupNote='',backupBad=false,pendingRestore=null;
+function backupData(){
+  save();
+  let data=null;try{data=JSON.parse(localStorage.getItem(KEY));}catch(e){}
+  return{app:'cutcard',v:1,at:Date.now(),data:data||{}};
+}
+function backupCode(){
+  const bytes=new TextEncoder().encode(JSON.stringify(backupData()));let s='';
+  for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+8192));
+  return BACKUP_TAG+btoa(s);
+}
+/* Reads a backup code or file text. Returns the backup, or null if it is not one. */
+function readBackup(text){
+  try{
+    text=String(text||'').trim();let json=text;
+    if(text.indexOf(BACKUP_TAG)===0){const bin=atob(text.slice(BACKUP_TAG.length).replace(/\s+/g,''));json=new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)));}
+    const b=JSON.parse(json);
+    if(!b||b.app!=='cutcard'||!b.data||typeof b.data!=='object')return null;
+    return b;
+  }catch(e){return null;}
+}
+/* Keep only settings this version knows, with the right type. Stats and tables are checked again when the app loads them. */
+function cleanBackup(d){
+  const out=Object.assign({},d),c={};
+  if(d.cfg&&typeof d.cfg==='object')Object.keys(DEFAULTS).forEach(k=>{if(typeof d.cfg[k]===typeof DEFAULTS[k])c[k]=d.cfg[k];});
+  out.cfg=c;
+  return out;
+}
+function summarize(b){
+  const d=b.data||{},st=d.stats||{},ts=d.tstats||{},ds=d.dstats||{},camp=ds.camp&&Number.isInteger(ds.camp.lvl)?ds.camp.lvl:0;
+  return'Backup from '+new Date(b.at||0).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+': '
+    +(st.hands||0)+' solo rounds, '+(ts.hands||0)+' Together rounds, '+(ds.dRuns||0)+' drills, campaign level '+(Math.min(camp,LEVELS.length-1)+1)+'.';
+}
+function backupHTML(){
+  const busyTable=S.phase!=='bet'||busy||!!Net.role;
+  return'<p class="hint">Each browser keeps its own data, and so does an app added to the home screen. Copy a backup here, then restore it on the other side.</p>'
+    +'<div class="row"><button class="btn" data-bk="copy">Copy backup code</button><button class="btn" data-bk="file">Save backup file</button></div>'
+    +(pendingRestore
+      ?'<p class="coach hint">'+esc(summarize(pendingRestore))+' This replaces everything on this phone.</p><div class="row"><button class="btn ghost" data-bk="cancel">Cancel</button><button class="btn primary" data-bk="apply">Replace and restore</button></div>'
+      :'<div class="row"><button class="btn" data-bk="paste" '+(busyTable?'disabled':'')+'>Restore from code</button><button class="btn" data-bk="open" '+(busyTable?'disabled':'')+'>Restore from file</button></div>'
+        +(busyTable&&Net.role?'<p class="hint">Leave the shared table first to restore.</p>':''))
+    +'<input type="file" id="bkFile" accept=".json,.txt,application/json,text/plain" hidden>'
+    +(backupNote?'<p class="coach '+(backupBad?'bad':'good')+'">'+esc(backupNote)+'</p>':'');
+}
+function backupMsg(msg,isBad){backupNote=msg;backupBad=!!isBad;renderSettings();}
+function stageRestore(text){
+  const b=readBackup(text);
+  if(!b){backupMsg('That is not a Cut Card backup. Copy the code again and try once more.',true);return;}
+  pendingRestore=b;backupNote='';renderSettings();
+}
+async function backupAct(a){
+  if(a==='copy'){
+    const code=backupCode();
+    try{await navigator.clipboard.writeText(code);backupMsg('Backup code copied. Open the other browser or the home screen app, then Settings, Backup, Restore from code.');}
+    catch(e){backupMsg('Could not copy here. Use Save backup file instead.',true);}
+  }else if(a==='file'){
+    const name='cut-card-backup-'+new Date().toISOString().slice(0,10)+'.json',blob=new Blob([JSON.stringify(backupData())],{type:'application/json'});
+    try{
+      const f=new File([blob],name,{type:'application/json'});
+      if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Cut Card backup'});backupMsg('Backup ready. Save it to Files, then use Restore from file on the other side.');return;}
+    }catch(e){if(e&&e.name==='AbortError')return;}
+    const u=URL.createObjectURL(blob),l=document.createElement('a');l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+    backupMsg('Backup file saved as '+name+'.');
+  }else if(a==='paste'){
+    try{stageRestore(await navigator.clipboard.readText());}
+    catch(e){backupMsg('Could not read the clipboard. Allow pasting when asked, or use Restore from file.',true);}
+  }else if(a==='open'){$('#bkFile').click();}
+  else if(a==='cancel'){pendingRestore=null;renderSettings();}
+  else if(a==='apply'&&pendingRestore){
+    if(S.phase!=='bet'||busy||Net.role)return;
+    try{localStorage.setItem(KEY,JSON.stringify(cleanBackup(pendingRestore.data)));}catch(e){backupMsg('Could not save the backup on this phone.',true);return;}
+    /* Reload without saving the old data over the restored copy. */
+    restoring=true;location.reload();
+  }
+}
+
 /* Settings are grouped into sections that open one at a time, each with a one-line summary of what is set now. */
 const openGrps=new Set(['Saved setups','sRounds']);
 const onOff=b=>b?'on':'off';
@@ -1997,6 +2077,7 @@ function grpSummary(n){
     case'Coaching':return'Bet tip '+onOff(c.betHint)+' · hints '+(c.hint?'always':'on tap')+' · feedback '+onOff(c.feedback);
     case'Pace':return ucf(c.speed)+' dealing';
     case'Session':return'Shuffle or reload chips';
+    case'Backup':return'Move your stats to another browser, the home screen app or a new phone';
   }
   return'';
 }
@@ -2032,7 +2113,8 @@ function renderSettings(){
    +fld('Feedback after each decision',seg('feedback',[['On',true],['Off',false]]))
    +fld('Include Hi-Lo index plays',seg('indices',[['On',true],['Off',false]]),'Deviations from basic strategy at high or low counts.')+'</div></details>'
    +grpOpen('Pace')+fld('Dealing speed',seg('speed',[['Relaxed','relaxed'],['Casino','casino'],['Fast','fast']]))+'</div></details>'
-   +grpOpen('Session')+'<button class="btn" data-act="newShoe">Shuffle a new shoe</button><p class="hint">Starts the running count over at the start value. Reloading chips does not reshuffle.</p><button class="btn" data-act="reloadBank">Reload '+fmt(START_BANK)+'</button><p class="hint">Stats and round history are in the Stats tab, where you can also reset them.</p></div></details>';
+   +grpOpen('Session')+'<button class="btn" data-act="newShoe">Shuffle a new shoe</button><p class="hint">Starts the running count over at the start value. Reloading chips does not reshuffle.</p><button class="btn" data-act="reloadBank">Reload '+fmt(START_BANK)+'</button><p class="hint">Stats and round history are in the Stats tab, where you can also reset them.</p></div></details>'
+   +grpOpen('Backup')+backupHTML()+'</div></details>';
   if(Net.role==='guest'){
     const body=$('#settingsBody');
     body.querySelectorAll('details.grp').forEach(g=>{const t=g.querySelector('h3').textContent;if(t==='Shoe'||t==='Table'||t==='Rules')g.remove();});
@@ -2049,6 +2131,7 @@ function setCfg(k,v){
 }
 $('#settingsBody').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b||b.disabled)return;
+  if(b.dataset.bk){backupAct(b.dataset.bk);return;}
   if(b.dataset.pre){
     const a=b.dataset.pre,i=Number(b.dataset.i);
     if(a!=='del')presetDel=-1;
@@ -2067,13 +2150,14 @@ $('#settingsBody').addEventListener('click',e=>{
 });
 ['#vDrill','#vStats'].forEach(id=>$(id).addEventListener('toggle',e=>{const g=e.target;if(!g.matches||!g.matches('details.grp'))return;if(g.open)openGrps.add(g.dataset.grp);else openGrps.delete(g.dataset.grp);},true));
 $('#settingsBody').addEventListener('toggle',e=>{const g=e.target;if(!g.matches||!g.matches('details.grp'))return;if(g.open)openGrps.add(g.dataset.grp);else openGrps.delete(g.dataset.grp);},true);
-$('#settingsBody').addEventListener('change',e=>{if(e.target.id==='selSys')setCfg('system',e.target.value);});
+$('#settingsBody').addEventListener('change',e=>{
+  if(e.target.id==='bkFile'){const f=e.target.files&&e.target.files[0];if(!f)return;f.text().then(stageRestore,()=>backupMsg('Could not read that file.',true));return;}if(e.target.id==='selSys')setCfg('system',e.target.value);});
 $('#settingsBody').addEventListener('keydown',e=>{if(e.target.id==='presetName'&&e.key==='Enter'){savePreset(e.target.value);renderSettings();}});
 $('#settingsBody').addEventListener('input',e=>{
   if(e.target.id==='presetName'){presetDraft=e.target.value;return;}
   if(e.target.id==='penRange'){cfg.pen=Number(e.target.value);$('#penOut').textContent=cfg.pen+'%';newShoe();S.msg='New shoe shuffled.';save();render();}
 });
-function openSettings(){if(S.phase!=='bet'||busy)return;presetNote='';presetDel=-1;renderSettings();$('#settingsOv').hidden=false;}
+function openSettings(){if(S.phase!=='bet'||busy)return;presetNote='';presetDel=-1;backupNote='';pendingRestore=null;renderSettings();$('#settingsOv').hidden=false;}
 function closeSettings(){$('#settingsOv').hidden=true;render();if(cfg.view==='drill'&&DR.phase!=='run')renderDrill();}
 $('#settingsOv').addEventListener('click',e=>{
   if(e.target.id==='settingsOv'||(e.target.closest('[data-act="close"]')))closeSettings();

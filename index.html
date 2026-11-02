@@ -212,6 +212,9 @@ kbd{font:500 11px var(--font-mono);color:var(--ivory-dim);border:1px solid rgba(
 .sheet h2.ok{color:var(--win)}.sheet h2.bad{color:var(--lose)}
 .sub{margin:0;color:var(--ivory-dim);font-size:13px}
 .grps{display:grid;gap:8px}
+.pastebox{width:100%;min-height:72px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.3);color:var(--ivory);font:500 13px var(--font-mono);resize:vertical}
+.ptr{position:fixed;left:50%;top:0;z-index:60;transform:translate(-50%,calc(var(--pull,0px) - 100%));padding:8px 14px;border-radius:999px;background:var(--rail-3);border:1px solid var(--brass-dim);color:var(--ivory);font:600 13px var(--font-body);opacity:0;transition:opacity .15s;pointer-events:none;margin-top:max(8px,env(safe-area-inset-top,0px))}
+.ptr.show{opacity:1}
 .ready-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .rdy{padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.25);font:600 13px var(--font-body);color:var(--ivory-dim);text-align:center}
 .rdy.on{background:var(--act-hit);color:var(--ivory)}
@@ -1987,7 +1990,17 @@ function applyPreset(p){
 /* Everything this phone saved (settings, bankrolls, tables, stats, drills, campaign, setups) as one code or file.
    The same format can be read by a future app. Each browser, and each home screen app, keeps its own data, so this is how data moves. */
 const BACKUP_TAG='CUTCARD1:';
-let backupNote='',backupBad=false,pendingRestore=null;
+let backupNote='',backupBad=false,pendingRestore=null,pasteBox=false;
+/* Copy with a hidden, read-only text box so no keyboard opens. Returns true when the browser says it copied. */
+function legacyCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+  document.body.appendChild(ta);
+  let ok=false;
+  try{ta.focus();ta.select();ta.setSelectionRange(0,text.length);ok=document.execCommand('copy');}catch(e){ok=false;}
+  ta.remove();window.getSelection&&window.getSelection().removeAllRanges();
+  return ok;
+}
 function backupData(){
   save();
   let data=null;try{data=JSON.parse(localStorage.getItem(KEY));}catch(e){}
@@ -2026,7 +2039,8 @@ function backupHTML(){
     +'<div class="row"><button class="btn" data-bk="copy">Copy backup code</button><button class="btn" data-bk="file">Save backup file</button></div>'
     +(pendingRestore
       ?'<p class="coach hint">'+esc(summarize(pendingRestore))+' This replaces everything on this phone.</p><div class="row"><button class="btn ghost" data-bk="cancel">Cancel</button><button class="btn primary" data-bk="apply">Replace and restore</button></div>'
-      :'<div class="row"><button class="btn" data-bk="paste" '+(busyTable?'disabled':'')+'>Restore from code</button><button class="btn" data-bk="open" '+(busyTable?'disabled':'')+'>Restore from file</button></div>'
+      :(pasteBox?'<p class="hint">This browser would not let the app read the clipboard. Touch and hold in the box, tap Paste, then tap Use this code.</p><textarea id="bkPaste" class="pastebox" rows="3" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="CUTCARD1:…"></textarea><div class="row"><button class="btn ghost" data-bk="cancel">Cancel</button><button class="btn primary" data-bk="pasted">Use this code</button></div>'
+        :'<div class="row"><button class="btn" data-bk="paste" '+(busyTable?'disabled':'')+'>Restore from code</button><button class="btn" data-bk="open" '+(busyTable?'disabled':'')+'>Restore from file</button></div>')
         +(busyTable&&Net.role?'<p class="hint">Leave the shared table first to restore.</p>':''))
     +'<input type="file" id="bkFile" accept=".json,.txt,application/json,text/plain" hidden>'
     +(backupNote?'<p class="coach '+(backupBad?'bad':'good')+'">'+esc(backupNote)+'</p>':'');
@@ -2039,9 +2053,11 @@ function stageRestore(text){
 }
 async function backupAct(a){
   if(a==='copy'){
-    const code=backupCode();
-    try{await navigator.clipboard.writeText(code);backupMsg('Backup code copied. Open the other browser or the home screen app, then Settings, Backup, Restore from code.');}
-    catch(e){backupMsg('Could not copy here. Use Save backup file instead.',true);}
+    const code=backupCode(),done='Backup code copied. Open the other browser or the home screen app, then Settings, Backup, Restore from code.';
+    /* The older copy method first: it works inside the tap on iPhone browsers that block the newer clipboard API. */
+    if(legacyCopy(code)){backupMsg(done);return;}
+    try{await navigator.clipboard.writeText(code);backupMsg(done);}
+    catch(e){backupMsg('This browser would not copy the code. Use Save backup file instead.',true);}
   }else if(a==='file'){
     const name='cut-card-backup-'+new Date().toISOString().slice(0,10)+'.json',blob=new Blob([JSON.stringify(backupData())],{type:'application/json'});
     try{
@@ -2051,10 +2067,11 @@ async function backupAct(a){
     const u=URL.createObjectURL(blob),l=document.createElement('a');l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
     backupMsg('Backup file saved as '+name+'.');
   }else if(a==='paste'){
-    try{stageRestore(await navigator.clipboard.readText());}
-    catch(e){backupMsg('Could not read the clipboard. Allow pasting when asked, or use Restore from file.',true);}
+    try{const txt=await navigator.clipboard.readText();if(!txt)throw new Error('empty');stageRestore(txt);}
+    catch(e){pasteBox=true;backupNote='';renderSettings();const pb=$('#bkPaste');if(pb)pb.focus();}
+  }else if(a==='pasted'){pasteBox=false;stageRestore(($('#bkPaste')||{}).value);
   }else if(a==='open'){$('#bkFile').click();}
-  else if(a==='cancel'){pendingRestore=null;renderSettings();}
+  else if(a==='cancel'){pendingRestore=null;pasteBox=false;renderSettings();}
   else if(a==='apply'&&pendingRestore){
     if(S.phase!=='bet'||busy||Net.role)return;
     try{localStorage.setItem(KEY,JSON.stringify(cleanBackup(pendingRestore.data)));}catch(e){backupMsg('Could not save the backup on this phone.',true);return;}
@@ -2076,7 +2093,7 @@ function grpSummary(n){
     case'Counting':return SYSTEMS[c.system].name+' · quiz '+({off:'off','1':'every hand','3':'every 3 hands',rand:'at random'}[c.quiz])+' · count '+(c.showRC?'shown':'hidden');
     case'Coaching':return'Bet tip '+onOff(c.betHint)+' · hints '+(c.hint?'always':'on tap')+' · feedback '+onOff(c.feedback);
     case'Pace':return ucf(c.speed)+' dealing';
-    case'Session':return'Shuffle or reload chips';
+    case'Session':return'Shuffle, reload chips or reload the app';
     case'Backup':return'Move your stats to another browser, the home screen app or a new phone';
   }
   return'';
@@ -2113,7 +2130,7 @@ function renderSettings(){
    +fld('Feedback after each decision',seg('feedback',[['On',true],['Off',false]]))
    +fld('Include Hi-Lo index plays',seg('indices',[['On',true],['Off',false]]),'Deviations from basic strategy at high or low counts.')+'</div></details>'
    +grpOpen('Pace')+fld('Dealing speed',seg('speed',[['Relaxed','relaxed'],['Casino','casino'],['Fast','fast']]))+'</div></details>'
-   +grpOpen('Session')+'<button class="btn" data-act="newShoe">Shuffle a new shoe</button><p class="hint">Starts the running count over at the start value. Reloading chips does not reshuffle.</p><button class="btn" data-act="reloadBank">Reload '+fmt(START_BANK)+'</button><p class="hint">Stats and round history are in the Stats tab, where you can also reset them.</p></div></details>'
+   +grpOpen('Session')+'<button class="btn" data-act="newShoe">Shuffle a new shoe</button><p class="hint">Starts the running count over at the start value. Reloading chips does not reshuffle.</p><button class="btn" data-act="reloadBank">Reload '+fmt(START_BANK)+'</button><p class="hint">Stats and round history are in the Stats tab, where you can also reset them.</p><button class="btn" data-act="reloadApp">Reload app</button><p class="hint">Gets the newest version. Your stats and table stay as they are.</p></div></details>'
    +grpOpen('Backup')+backupHTML()+'</div></details>';
   if(Net.role==='guest'){
     const body=$('#settingsBody');
@@ -2132,6 +2149,7 @@ function setCfg(k,v){
 $('#settingsBody').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b||b.disabled)return;
   if(b.dataset.bk){backupAct(b.dataset.bk);return;}
+  if(b.dataset.act==='reloadApp'){reloadApp();return;}
   if(b.dataset.pre){
     const a=b.dataset.pre,i=Number(b.dataset.i);
     if(a!=='del')presetDel=-1;
@@ -2157,7 +2175,7 @@ $('#settingsBody').addEventListener('input',e=>{
   if(e.target.id==='presetName'){presetDraft=e.target.value;return;}
   if(e.target.id==='penRange'){cfg.pen=Number(e.target.value);$('#penOut').textContent=cfg.pen+'%';newShoe();S.msg='New shoe shuffled.';save();render();}
 });
-function openSettings(){if(S.phase!=='bet'||busy)return;presetNote='';presetDel=-1;backupNote='';pendingRestore=null;renderSettings();$('#settingsOv').hidden=false;}
+function openSettings(){if(S.phase!=='bet'||busy)return;presetNote='';presetDel=-1;backupNote='';pendingRestore=null;pasteBox=false;renderSettings();$('#settingsOv').hidden=false;}
 function closeSettings(){$('#settingsOv').hidden=true;render();if(cfg.view==='drill'&&DR.phase!=='run')renderDrill();}
 $('#settingsOv').addEventListener('click',e=>{
   if(e.target.id==='settingsOv'||(e.target.closest('[data-act="close"]')))closeSettings();
@@ -2715,6 +2733,31 @@ S.bankroll=slots[S.mode].bank;
 if(!restoreTable(slots[S.mode].table)){newShoe();setupTable();}
 render();
 setView(cfg.view);
+/* ---------- refresh ---------- */
+/* A fresh address skips the copy the phone keeps, so this picks up a new version right away. Saved data is kept. */
+function reloadApp(){save();restoring=true;location.replace(location.pathname+'?v='+Date.now());}
+/* Home screen apps on iPhone have no pull to refresh, so the app adds its own there. Browsers keep their own. */
+const standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+if(standalone){
+  const ptr=document.createElement('div');ptr.className='ptr';ptr.setAttribute('aria-hidden','true');document.body.appendChild(ptr);
+  let y0=-1,dy=0;const PULL=90;
+  const blocked=()=>!$('#settingsOv').hidden||!$('#guideOv').hidden||!$('#quizOv').hidden||!$('#cutOv').hidden||DR.phase==='run';
+  const midHand=()=>(cfg.view==='solo'||cfg.view==='tog')&&(S.phase!=='bet'||busy);
+  document.addEventListener('touchstart',e=>{y0=(window.scrollY<=0&&!blocked()&&e.touches.length===1)?e.touches[0].clientY:-1;dy=0;},{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(y0<0)return;dy=e.touches[0].clientY-y0;
+    if(dy<=0||window.scrollY>0){ptr.classList.remove('show');return;}
+    ptr.classList.add('show');ptr.style.setProperty('--pull',Math.min(dy,PULL*1.4)+'px');
+    ptr.textContent=midHand()?'Finish the hand to refresh':dy>=PULL?'Release to refresh':'Pull to refresh';
+  },{passive:true});
+  document.addEventListener('touchend',()=>{
+    if(y0>=0&&dy>=PULL&&!midHand()&&!blocked()){ptr.textContent='Refreshing…';reloadApp();return;}
+    ptr.classList.remove('show');y0=-1;dy=0;
+  },{passive:true});
+}
+/* Drop the one-time ?v= from the address so a later reload or share uses the plain address. */
+if(/[?&]v=\d+/.test(location.search)){try{history.replaceState(null,'',location.pathname+location.hash);}catch(e){}}
+
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){save();if(DR.phase==='run'&&DR.pace){stopDrill();renderDrill();}}});
 window.addEventListener('pagehide',save);
 netInit();
